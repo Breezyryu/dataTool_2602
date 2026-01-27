@@ -22,11 +22,7 @@ from .handlers import (
     calculate_degradation_metrics,
 )
 
-from .main import run_app
-
 __all__ = [
-    # App
-    "run_app",
     # Cycle
     "process_cycle_data",
     "process_folder_cycles",
