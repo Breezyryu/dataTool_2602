@@ -367,3 +367,344 @@ def toyo_cycle_data(raw_file_path: str, mincapacity: float, inirate: float, chki
         sys.exit()
     
     return [mincapacity, df]
+
+
+# ============================================================================
+# Toyo Profile 처리 함수
+# ============================================================================
+
+def toyo_chg_Profile_data(
+    raw_file_path: str,
+    inicycle: int,
+    mincapacity: float,
+    cutoff: float,
+    inirate: float,
+    smoothdegree: int
+) -> list:
+    """Toyo 충전 Profile 처리.
+    
+    전기화학적 맥락:
+        CC-CV 충전의 전압-용량 곡선을 분석합니다.
+        - SOC: 누적 충전 용량 (정격 대비 %)
+        - dV/dQ: 전압 미분값 (피크 위치로 열화 분석)
+        - dQ/dV: 용량 미분값 (피크 강도로 활물질 손실 분석)
+    
+    Args:
+        raw_file_path: 원시 데이터 폴더 경로
+        inicycle: 분석할 cycle 번호
+        mincapacity: 정격 용량 (0이면 자동)
+        cutoff: 전압 하한 (V)
+        inirate: 첫 cycle C-rate
+        smoothdegree: 평활화 정도 (0이면 자동)
+    
+    Returns:
+        [mincapacity, df] 리스트
+    """
+    df = pd.DataFrame()
+    tempmincap = toyo_min_cap(raw_file_path, mincapacity, inirate)
+    mincapacity = tempmincap
+    
+    if os.path.isfile(raw_file_path + "\\%06d" % inicycle):
+        tempdata = toyo_Profile_import(raw_file_path, inicycle)
+        if hasattr(tempdata, 'dataraw'):
+            df.Profile = tempdata.dataraw
+            df.Profile = df.Profile[(df.Profile["Condition"] == 1)]
+            df.Profile = df.Profile[df.Profile["Voltage[V]"] >= cutoff]
+            
+            if not df.Profile.empty:
+                df.Profile = df.Profile.reset_index()
+                df.Profile["deltime"] = df.Profile["PassTime[Sec]"].diff()
+                df.Profile["delcurr"] = df.Profile["Current[mA]"].rolling(window=2).mean()
+                df.Profile["delvol"] = df.Profile["Voltage[V]"].rolling(window=2).mean()
+                df.Profile["delcap"] = df.Profile["deltime"] / 3600 * df.Profile["delcurr"] / mincapacity
+                df.Profile["delwh"] = df.Profile["delcap"] * mincapacity * df.Profile["delvol"]
+                df.Profile["Cap[mAh]"] = df.Profile["delcap"].cumsum()
+                df.Profile["Chgwh"] = df.Profile["delwh"].cumsum()
+                
+                if smoothdegree == 0:
+                    smoothdegree = int(len(df.Profile) / 30)
+                
+                df.Profile["delvol"] = df.Profile["Voltage[V]"].diff(periods=smoothdegree)
+                df.Profile["delcap"] = df.Profile["Cap[mAh]"].diff(periods=smoothdegree)
+                df.Profile["dQdV"] = df.Profile["delcap"] / df.Profile["delvol"]
+                df.Profile["dVdQ"] = df.Profile["delvol"] / df.Profile["delcap"]
+                
+                df.Profile["PassTime[Sec]"] = df.Profile["PassTime[Sec]"] / 60
+                df.Profile["Current[mA]"] = df.Profile["Current[mA]"] / mincapacity
+                df.Profile = df.Profile[["PassTime[Sec]", "Cap[mAh]", "Chgwh", "Voltage[V]", 
+                                         "Current[mA]", "dQdV", "dVdQ", "Temp1[Deg]"]]
+                df.Profile.columns = ["TimeMin", "SOC", "Energy", "Vol", "Crate", "dQdV", "dVdQ", "Temp"]
+    
+    return [mincapacity, df]
+
+
+def toyo_dchg_Profile_data(
+    raw_file_path: str,
+    inicycle: int,
+    mincapacity: float,
+    cutoff: float,
+    inirate: float,
+    smoothdegree: int
+) -> list:
+    """Toyo 방전 Profile 처리.
+    
+    전기화학적 맥락:
+        CC 방전의 전압-용량 곡선을 분석합니다.
+        연속 방전 step이 있으면 병합합니다.
+    
+    Args:
+        raw_file_path: 원시 데이터 폴더 경로
+        inicycle: 분석할 cycle 번호
+        mincapacity: 정격 용량 (0이면 자동)
+        cutoff: 전압 하한 (V)
+        inirate: 첫 cycle C-rate
+        smoothdegree: 평활화 정도 (0이면 자동)
+    
+    Returns:
+        [mincapacity, df] 리스트
+    """
+    df = pd.DataFrame()
+    tempmincap = toyo_min_cap(raw_file_path, mincapacity, inirate)
+    mincapacity = tempmincap
+    
+    if os.path.isfile(raw_file_path + "\\%06d" % inicycle):
+        tempdata = toyo_Profile_import(raw_file_path, inicycle)
+        if hasattr(tempdata, 'dataraw'):
+            df.Profile = tempdata.dataraw
+            df.Profile = df.Profile[(df.Profile["Condition"] == 2)]
+            
+            # 다음 cycle에 연속 방전이 있는지 확인
+            if os.path.isfile(raw_file_path + "\\%06d" % (inicycle + 1)):
+                tempdata2 = toyo_Profile_import(raw_file_path, inicycle + 1)
+                if hasattr(tempdata2, 'dataraw'):
+                    if not tempdata2.dataraw["Condition"].isin([1]).any():
+                        lasttime = df.Profile["PassTime[Sec]"].max()
+                        Profile2 = tempdata2.dataraw[(tempdata2.dataraw["Condition"] == 2)]
+                        Profile2["PassTime[Sec]"] = Profile2["PassTime[Sec]"] + lasttime
+                        df.Profile = df.Profile._append(Profile2)
+            
+            df.Profile = df.Profile[df.Profile["Voltage[V]"] >= cutoff]
+            
+            if not df.Profile.empty:
+                df.Profile = df.Profile.reset_index()
+                df.Profile["deltime"] = df.Profile["PassTime[Sec]"].diff()
+                df.Profile["delcurr"] = df.Profile["Current[mA]"].rolling(window=2).mean()
+                df.Profile["delvol"] = df.Profile["Voltage[V]"].rolling(window=2).mean()
+                df.Profile["delcap"] = df.Profile["deltime"] / 3600 * df.Profile["delcurr"] / mincapacity
+                df.Profile["delwh"] = df.Profile["delcap"] * mincapacity * df.Profile["delvol"]
+                df.Profile["Cap[mAh]"] = df.Profile["delcap"].cumsum()
+                df.Profile["Dchgwh"] = df.Profile["delwh"].cumsum()
+                
+                if smoothdegree == 0:
+                    smoothdegree = int(len(df.Profile) / 30)
+                
+                df.Profile["delvol"] = df.Profile["Voltage[V]"].diff(periods=smoothdegree)
+                df.Profile["delcap"] = df.Profile["Cap[mAh]"].diff(periods=smoothdegree)
+                df.Profile["dQdV"] = df.Profile["delcap"] / df.Profile["delvol"]
+                df.Profile["dVdQ"] = df.Profile["delvol"] / df.Profile["delcap"]
+                
+                df.Profile["PassTime[Sec]"] = df.Profile["PassTime[Sec]"] / 60
+                df.Profile["Current[mA]"] = df.Profile["Current[mA]"] / mincapacity
+                df.Profile = df.Profile[["PassTime[Sec]", "Cap[mAh]", "Dchgwh", "Voltage[V]",
+                                         "Current[mA]", "dQdV", "dVdQ", "Temp1[Deg]"]]
+                df.Profile.columns = ["TimeMin", "SOC", "Energy", "Vol", "Crate", "dQdV", "dVdQ", "Temp"]
+    
+    return [mincapacity, df]
+
+
+def toyo_step_Profile_data(
+    raw_file_path: str,
+    inicycle: int,
+    mincapacity: float,
+    cutoff: float,
+    inirate: float
+) -> list:
+    """Toyo Step 충전 Profile 처리.
+    
+    전기화학적 맥락:
+        Step 충전 패턴의 전류 변화를 분석합니다.
+        여러 충전 step을 병합하여 전체 충전 곡선을 생성합니다.
+    
+    Args:
+        raw_file_path: 원시 데이터 폴더 경로
+        inicycle: 시작 cycle 번호
+        mincapacity: 정격 용량 (0이면 자동)
+        cutoff: 전류 하한 (C-rate)
+        inirate: 첫 cycle C-rate
+    
+    Returns:
+        [mincapacity, df] 리스트
+    """
+    df = pd.DataFrame()
+    tempmincap = toyo_min_cap(raw_file_path, mincapacity, inirate)
+    mincapacity = tempmincap
+    
+    if os.path.isfile(raw_file_path + "\\%06d" % inicycle):
+        tempdata = toyo_Profile_import(raw_file_path, inicycle)
+        if hasattr(tempdata, 'dataraw'):
+            stepcyc = inicycle
+            lasttime = 0
+            
+            if int(tempdata.dataraw["Condition"].max()) < 2:
+                df.stepchg = tempdata.dataraw
+                df.stepchg = df.stepchg[(df.stepchg["Condition"] == 1)]
+                lasttime = df.stepchg["PassTime[Sec]"].max()
+                maxcon = 1
+                
+                while maxcon == 1:
+                    stepcyc += 1
+                    tempdata = toyo_Profile_import(raw_file_path, stepcyc)
+                    if not hasattr(tempdata, 'dataraw'):
+                        break
+                    maxcon = int(tempdata.dataraw["Condition"].max())
+                    tempdata.dataraw = tempdata.dataraw[(tempdata.dataraw["Condition"] == 1)]
+                    tempdata.dataraw["PassTime[Sec]"] = tempdata.dataraw["PassTime[Sec]"] + lasttime
+                    df.stepchg = df.stepchg._append(tempdata.dataraw)
+                    lasttime = df.stepchg["PassTime[Sec]"].max()
+            else:
+                df.stepchg = tempdata.dataraw
+                df.stepchg = df.stepchg[(df.stepchg["Condition"] == 1)]
+            
+            if hasattr(df, 'stepchg') and not df.stepchg.empty:
+                df.stepchg["Cap[mAh]"] = 0
+                df.stepchg = df.stepchg[df.stepchg["Current[mA]"] >= (cutoff * mincapacity)]
+                df.stepchg = df.stepchg.reset_index()
+                
+                if len(df.stepchg) > 1:
+                    initial_cap = df.stepchg["Cap[mAh]"].iloc[0]
+                    df.stepchg["delta_time"] = df.stepchg["PassTime[Sec]"].shift(-1) - df.stepchg["PassTime[Sec]"]
+                    df.stepchg["next_current"] = df.stepchg["Current[mA]"].shift(-1)
+                    df.stepchg["contribution"] = (df.stepchg["delta_time"] * df.stepchg["next_current"]) / 3600
+                    df.stepchg["Cap[mAh]"] = initial_cap + df.stepchg["contribution"].fillna(0).cumsum().shift(1, fill_value=0)
+                    df.stepchg.drop(["delta_time", "next_current", "contribution"], axis=1, inplace=True)
+                
+                df.stepchg["PassTime[Sec]"] = df.stepchg["PassTime[Sec]"] / 60
+                df.stepchg["Current[mA]"] = df.stepchg["Current[mA]"] / mincapacity
+                df.stepchg["Cap[mAh]"] = df.stepchg["Cap[mAh]"] / mincapacity
+                df.stepchg = df.stepchg[["PassTime[Sec]", "Cap[mAh]", "Voltage[V]", "Current[mA]", "Temp1[Deg]"]]
+                df.stepchg.columns = ["TimeMin", "SOC", "Vol", "Crate", "Temp"]
+    
+    return [mincapacity, df]
+
+
+def toyo_rate_Profile_data(
+    raw_file_path: str,
+    inicycle: int,
+    mincapacity: float,
+    cutoff: float,
+    inirate: float
+) -> list:
+    """Toyo 율별 충전 Profile 처리.
+    
+    전기화학적 맥락:
+        다양한 C-rate에서의 충전 특성을 분석합니다.
+    
+    Args:
+        raw_file_path: 원시 데이터 폴더 경로
+        inicycle: 분석할 cycle 번호
+        mincapacity: 정격 용량 (0이면 자동)
+        cutoff: 전류 하한 (C-rate)
+        inirate: 첫 cycle C-rate
+    
+    Returns:
+        [mincapacity, df] 리스트
+    """
+    df = pd.DataFrame()
+    tempmincap = toyo_min_cap(raw_file_path, mincapacity, inirate)
+    mincapacity = tempmincap
+    
+    if os.path.isfile(raw_file_path + "\\%06d" % inicycle):
+        tempdata = toyo_Profile_import(raw_file_path, inicycle)
+        if hasattr(tempdata, 'dataraw'):
+            Profileraw0 = tempdata.dataraw
+            Profileraw0 = Profileraw0[(Profileraw0["Condition"] == 1)]
+            
+            if not Profileraw0.empty:
+                df.rateProfile = Profileraw0
+                df.rateProfile["Cap[mAh]"] = 0
+                df.rateProfile = df.rateProfile[df.rateProfile["Current[mA]"] >= (cutoff * mincapacity)]
+                df.rateProfile = df.rateProfile.reset_index()
+                
+                if len(df.rateProfile) > 1:
+                    initial_cap = df.rateProfile["Cap[mAh]"].iloc[0]
+                    time_diffs = df.rateProfile["PassTime[Sec]"].diff().iloc[1:]
+                    increments = (time_diffs / 3600) * df.rateProfile["Current[mA]"].iloc[1:]
+                    cum_increments = increments.cumsum()
+                    df.rateProfile.iloc[1:, df.rateProfile.columns.get_loc("Cap[mAh]")] = initial_cap + cum_increments.values
+                
+                df.rateProfile["PassTime[Sec]"] = df.rateProfile["PassTime[Sec]"] / 60
+                df.rateProfile["Current[mA]"] = df.rateProfile["Current[mA]"] / mincapacity
+                df.rateProfile["Cap[mAh]"] = df.rateProfile["Cap[mAh]"] / mincapacity
+                df.rateProfile = df.rateProfile[["PassTime[Sec]", "Cap[mAh]", "Voltage[V]", "Current[mA]", "Temp1[Deg]"]]
+                df.rateProfile.columns = ["TimeMin", "SOC", "Vol", "Crate", "Temp"]
+    
+    return [mincapacity, df]
+
+
+def toyo_Profile_continue_data(
+    raw_file_path: str,
+    inicycle: int,
+    endcycle: int,
+    mincapacity: float,
+    inirate: float
+) -> list:
+    """Toyo 연속 충전 Profile 처리.
+    
+    여러 cycle에 걸친 연속 충전 데이터를 병합합니다.
+    
+    Args:
+        raw_file_path: 원시 데이터 폴더 경로
+        inicycle: 시작 cycle 번호
+        endcycle: 종료 cycle 번호
+        mincapacity: 정격 용량 (0이면 자동)
+        inirate: 첫 cycle C-rate
+    
+    Returns:
+        [mincapacity, df] 리스트
+    """
+    df = pd.DataFrame()
+    tempmincap = toyo_min_cap(raw_file_path, mincapacity, inirate)
+    mincapacity = tempmincap
+    
+    if os.path.isfile(raw_file_path + "\\%06d" % inicycle):
+        tempdata = toyo_Profile_import(raw_file_path, inicycle)
+        if hasattr(tempdata, 'dataraw'):
+            stepcyc = inicycle
+            lasttime = 0
+            
+            if int(tempdata.dataraw["Condition"].max()) < 2:
+                df.stepchg = tempdata.dataraw
+                lasttime = df.stepchg["PassTime[Sec]"].max()
+                maxcon = 1
+                
+                while maxcon == 1:
+                    stepcyc += 1
+                    tempdata = toyo_Profile_import(raw_file_path, stepcyc)
+                    if not hasattr(tempdata, 'dataraw'):
+                        break
+                    maxcon = int(tempdata.dataraw["Condition"].max())
+                    tempdata.dataraw["PassTime[Sec]"] = tempdata.dataraw["PassTime[Sec]"] + lasttime
+                    df.stepchg = df.stepchg._append(tempdata.dataraw)
+                    lasttime = df.stepchg["PassTime[Sec]"].max()
+            else:
+                df.stepchg = tempdata.dataraw
+            
+            if hasattr(df, 'stepchg') and not df.stepchg.empty:
+                df.stepchg["Cap[mAh]"] = 0
+                df.stepchg = df.stepchg.reset_index()
+                
+                if len(df.stepchg) > 1:
+                    time_diffs = df.stepchg["PassTime[Sec]"].diff().iloc[1:]
+                    increments = (time_diffs / 3600) * df.stepchg["Current[mA]"].iloc[1:]
+                    cum_increments = increments.cumsum()
+                    initial_cap = df.stepchg["Cap[mAh]"].iloc[0]
+                    df.stepchg.iloc[1:, df.stepchg.columns.get_loc("Cap[mAh]")] = initial_cap + cum_increments.values
+                
+                df.stepchg["PassTime[Sec]"] = df.stepchg["PassTime[Sec]"] / 60
+                df.stepchg["Current[mA]"] = df.stepchg["Current[mA]"] / mincapacity
+                df.stepchg["Cap[mAh]"] = df.stepchg["Cap[mAh]"] / mincapacity
+                df.stepchg = df.stepchg[["PassTime[Sec]", "Cap[mAh]", "Voltage[V]", "Current[mA]", "Temp1[Deg]"]]
+                df.stepchg.columns = ["TimeMin", "SOC", "Vol", "Crate", "Temp"]
+    
+    return [mincapacity, df]
+
