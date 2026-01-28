@@ -12462,22 +12462,22 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         else:
             dvdq_min_cap = 100
         if os.path.isfile(ca_mat_filepath):
-            ca_ccv_raw = pd.read_csv(ca_mat_filepath, sep="\t")
-            an_ccv_raw = pd.read_csv(an_mat_filepath, sep="\t")
+            ca_ccv_raw = pd.read_csv(ca_mat_filepath, sep=None, engine='python', header=0)
+            an_ccv_raw = pd.read_csv(an_mat_filepath, sep=None, engine='python', header=0)
         else:
             self.dvdq_material_button()
             ca_mat_filepath = str(self.ca_mat_dvdq_path.text())
             an_mat_filepath = str(self.an_mat_dvdq_path.text())
-            ca_ccv_raw = pd.read_csv(ca_mat_filepath, sep="\t")
-            an_ccv_raw = pd.read_csv(an_mat_filepath, sep="\t")
+            ca_ccv_raw = pd.read_csv(ca_mat_filepath, sep=None, engine='python', header=0)
+            an_ccv_raw = pd.read_csv(an_mat_filepath, sep=None, engine='python', header=0)
         ca_ccv_raw.columns = ["ca_cap", "ca_volt"]
         an_ccv_raw.columns = ["an_cap", "an_volt"]
         if os.path.isfile(real_filepath):
-            real_raw = pd.read_csv(real_filepath, sep="\t")
+            real_raw = pd.read_csv(real_filepath, sep=None, engine='python', header=0)
         else:
             self.dvdq_profile_button()
             real_filepath = str(self.pro_dvdq_path.text())
-            real_raw = pd.read_csv(real_filepath, sep="\t")
+            real_raw = pd.read_csv(real_filepath, sep=None, engine='python', header=0)
         real_raw.columns = ["real_cap", "real_volt"]
         # 셀 용량 기준
         full_cell_max_cap = max(real_raw.real_cap)
