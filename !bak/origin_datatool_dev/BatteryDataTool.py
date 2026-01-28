@@ -416,29 +416,7 @@ def generate_params(ca_mass_min, ca_mass_max, ca_slip_min, ca_slip_max, an_mass_
 
 # 전체 결과 기반 dataframe 생성 함수
 def generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, ca_mass, ca_slip, an_mass, an_slip,
-                             full_cell_max_cap, rated_cap, full_period,
-                             use_advanced_smoothing=False, denoise_strength=3.5, 
-                             Crate=0.2, slope_window=1):
-    """
-    dV/dQ 분석을 위한 시뮬레이션 데이터 생성.
-    
-    Args:
-        ca_ccv_raw: Cathode CCV 데이터
-        an_ccv_raw: Anode CCV 데이터
-        real_raw: 실제 Full Cell 데이터
-        ca_mass, ca_slip: Cathode mass/slip 파라미터
-        an_mass, an_slip: Anode mass/slip 파라미터
-        full_cell_max_cap: Full Cell 최대 용량
-        rated_cap: 정격 용량
-        full_period: 미분 period (기존 방식)
-        use_advanced_smoothing: 고급 스무딩 사용 여부 (기본: False)
-        denoise_strength: Wavelet 디노이즈 강도 (기본: 3.5)
-        Crate: C-rate (기본: 0.2)
-        slope_window: dMSMCD 윈도우 배율 (기본: 1)
-    
-    Returns:
-        simul_full: 시뮬레이션 결과 DataFrame
-    """
+                             full_cell_max_cap, rated_cap, full_period):
     # 용량 보정
     ca_ccv_raw.ca_cap_new = ca_ccv_raw.ca_cap * ca_mass - ca_slip
     an_ccv_raw.an_cap_new = an_ccv_raw.an_cap * an_mass - an_slip
@@ -455,48 +433,11 @@ def generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, ca_mass, ca_slip,
     simul_full = simul_full.drop(simul_full.index[-1])
     # 백분율로 용량 변경
     simul_full.full_cap = simul_full.full_cap / rated_cap * 100
-    
     # 미분값 생성
-    if use_advanced_smoothing:
-        # === 고급 스무딩 (Wavelet + dMSMCD) ===
-        try:
-            from smoothing_ref.Lib_LKS_denoise import denoise, dMSMCD as slope
-            
-            # dt 추정 (데이터 간격)
-            cap_diff = simul_full.full_cap.diff().median()
-            max_window = max(int(slope_window * 12 / Crate / cap_diff), 1)
-            
-            # 1) 전압 디노이즈
-            an_volt_denoised = denoise(simul_full.an_volt.values, denoise_strength)
-            ca_volt_denoised = denoise(simul_full.ca_volt.values, denoise_strength)
-            real_volt_denoised = denoise(simul_full.real_volt.values, denoise_strength)
-            
-            # 2) dMSMCD 기반 미분
-            an_slope = slope(an_volt_denoised, max_window)['median']
-            ca_slope = slope(ca_volt_denoised, max_window)['median']
-            real_slope = slope(real_volt_denoised, max_window)['median']
-            cap_slope = slope(simul_full.full_cap.values, max_window)['median']
-            
-            # 3) dV/dQ 계산
-            simul_full["an_dvdq"] = an_slope / cap_slope
-            simul_full["ca_dvdq"] = ca_slope / cap_slope
-            simul_full["real_dvdq"] = real_slope / cap_slope
-            simul_full["full_dvdq"] = simul_full["ca_dvdq"] - simul_full["an_dvdq"]
-            
-        except ImportError:
-            # 라이브러리 없을 시 기존 방식으로 fallback
-            print("Warning: smoothing_ref 라이브러리 없음. 기존 방식 사용.")
-            simul_full["an_dvdq"] = simul_full.an_volt.diff(periods=full_period) / simul_full.full_cap.diff(periods=full_period)
-            simul_full["ca_dvdq"] = simul_full.ca_volt.diff(periods=full_period) / simul_full.full_cap.diff(periods=full_period)
-            simul_full["real_dvdq"] = simul_full.real_volt.diff(periods=full_period) / simul_full.full_cap.diff(periods=full_period)
-            simul_full["full_dvdq"] = simul_full["ca_dvdq"] - simul_full["an_dvdq"]
-    else:
-        # === 기존 방식 (단순 diff) ===
-        simul_full["an_dvdq"] = simul_full.an_volt.diff(periods=full_period) / simul_full.full_cap.diff(periods=full_period)
-        simul_full["ca_dvdq"] = simul_full.ca_volt.diff(periods=full_period) / simul_full.full_cap.diff(periods=full_period)
-        simul_full["real_dvdq"] = simul_full.real_volt.diff(periods=full_period) / simul_full.full_cap.diff(periods=full_period)
-        simul_full["full_dvdq"] = simul_full["ca_dvdq"] - simul_full["an_dvdq"]
-    
+    simul_full["an_dvdq"] = simul_full.an_volt.diff(periods = full_period) / simul_full.full_cap.diff(periods = full_period)
+    simul_full["ca_dvdq"] = simul_full.ca_volt.diff(periods = full_period) / simul_full.full_cap.diff(periods = full_period)
+    simul_full["real_dvdq"] = simul_full.real_volt.diff(periods = full_period) / simul_full.full_cap.diff(periods = full_period)
+    simul_full["full_dvdq"] = simul_full["ca_dvdq"] - simul_full["an_dvdq"]
     return simul_full
 
 # 토요 데이터 csv 확인/ 폴더, cycle 순으로 입력
@@ -4425,70 +4366,6 @@ class Ui_sitool(object):
         self.dvdq_full_smoothing_no.setObjectName("dvdq_full_smoothing_no")
         self.horizontalLayout_142.addWidget(self.dvdq_full_smoothing_no)
         self.verticalLayout_22.addLayout(self.horizontalLayout_142)
-        
-        # === 고급 스무딩 옵션 UI ===
-        self.horizontalLayout_advanced_smoothing = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_advanced_smoothing.setContentsMargins(-1, 5, -1, -1)
-        self.horizontalLayout_advanced_smoothing.setObjectName("horizontalLayout_advanced_smoothing")
-        
-        # 고급 스무딩 체크박스
-        self.use_advanced_smoothing_chk = QtWidgets.QCheckBox(parent=self.dvdq)
-        self.use_advanced_smoothing_chk.setMinimumSize(QtCore.QSize(150, 33))
-        font = QtGui.QFont()
-        font.setFamily("맑은 고딕")
-        font.setPointSize(9)
-        self.use_advanced_smoothing_chk.setFont(font)
-        self.use_advanced_smoothing_chk.setObjectName("use_advanced_smoothing_chk")
-        self.use_advanced_smoothing_chk.setText("고급 스무딩")
-        self.horizontalLayout_advanced_smoothing.addWidget(self.use_advanced_smoothing_chk)
-        
-        # Denoise 강도 레이블
-        self.denoise_strength_label = QtWidgets.QLabel(parent=self.dvdq)
-        font = QtGui.QFont()
-        font.setFamily("맑은 고딕")
-        font.setPointSize(9)
-        self.denoise_strength_label.setFont(font)
-        self.denoise_strength_label.setObjectName("denoise_strength_label")
-        self.denoise_strength_label.setText("Denoise:")
-        self.horizontalLayout_advanced_smoothing.addWidget(self.denoise_strength_label)
-        
-        # Denoise 강도 입력
-        self.denoise_strength_input = QtWidgets.QLineEdit(parent=self.dvdq)
-        self.denoise_strength_input.setMinimumSize(QtCore.QSize(60, 33))
-        self.denoise_strength_input.setMaximumSize(QtCore.QSize(60, 33))
-        font = QtGui.QFont()
-        font.setFamily("맑은 고딕")
-        font.setPointSize(9)
-        self.denoise_strength_input.setFont(font)
-        self.denoise_strength_input.setObjectName("denoise_strength_input")
-        self.denoise_strength_input.setText("3.5")
-        self.horizontalLayout_advanced_smoothing.addWidget(self.denoise_strength_input)
-        
-        # Slope 윈도우 레이블
-        self.slope_window_label = QtWidgets.QLabel(parent=self.dvdq)
-        font = QtGui.QFont()
-        font.setFamily("맑은 고딕")
-        font.setPointSize(9)
-        self.slope_window_label.setFont(font)
-        self.slope_window_label.setObjectName("slope_window_label")
-        self.slope_window_label.setText("Slope:")
-        self.horizontalLayout_advanced_smoothing.addWidget(self.slope_window_label)
-        
-        # Slope 윈도우 입력
-        self.slope_window_input = QtWidgets.QLineEdit(parent=self.dvdq)
-        self.slope_window_input.setMinimumSize(QtCore.QSize(60, 33))
-        self.slope_window_input.setMaximumSize(QtCore.QSize(60, 33))
-        font = QtGui.QFont()
-        font.setFamily("맑은 고딕")
-        font.setPointSize(9)
-        self.slope_window_input.setFont(font)
-        self.slope_window_input.setObjectName("slope_window_input")
-        self.slope_window_input.setText("1")
-        self.horizontalLayout_advanced_smoothing.addWidget(self.slope_window_input)
-        
-        self.verticalLayout_22.addLayout(self.horizontalLayout_advanced_smoothing)
-        # === 고급 스무딩 옵션 UI 끝 ===
-        
         self.line_11 = QtWidgets.QFrame(parent=self.dvdq)
         self.line_11.setMinimumSize(QtCore.QSize(656, 3))
         self.line_11.setMaximumSize(QtCore.QSize(656, 3))
@@ -12465,10 +12342,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
             ca_mass, ca_slip, an_mass, an_slip = generate_params(ca_mass_min, ca_mass_max, ca_slip_min, ca_slip_max, an_mass_min, an_mass_max,
                                                                  an_slip_min, an_slip_max)
             simul_full = generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, ca_mass, ca_slip, an_mass, an_slip, full_cell_max_cap,
-                                                  dvdq_min_cap, full_period,
-                                                  use_advanced_smoothing=self.use_advanced_smoothing_chk.isChecked(),
-                                                  denoise_strength=float(self.denoise_strength_input.text() or 3.5),
-                                                  slope_window=int(self.slope_window_input.text() or 1))
+                                                  dvdq_min_cap, full_period)
             # 지정 영역에서만 rms 산정
             simul_full = simul_full.loc[(simul_full["full_cap"] > int(
                 self.dvdq_start_soc.text())) & (simul_full["full_cap"] < int(self.dvdq_end_soc.text()))]
@@ -12537,10 +12411,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
             an_mass_ini = float(self.an_mass_ini.text())
             an_slip_ini = float(self.an_slip_ini.text())
             simul_full = generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, ca_mass_ini, ca_slip_ini,
-                                                  an_mass_ini, an_slip_ini, full_cell_max_cap, dvdq_min_cap, full_period,
-                                                  use_advanced_smoothing=self.use_advanced_smoothing_chk.isChecked(),
-                                                  denoise_strength=float(self.denoise_strength_input.text() or 3.5),
-                                                  slope_window=int(self.slope_window_input.text() or 1))
+                                                  an_mass_ini, an_slip_ini, full_cell_max_cap, dvdq_min_cap, full_period)
             simul_full = simul_full.loc[(simul_full["full_cap"] > int(self.dvdq_start_soc.text())) &
                                         (simul_full["full_cap"] < int(self.dvdq_end_soc.text()))]
             simul_diff = np.subtract(simul_full.full_dvdq, simul_full.real_dvdq)

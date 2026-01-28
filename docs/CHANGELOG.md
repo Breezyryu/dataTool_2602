@@ -1,5 +1,30 @@
 # battery_tool 변경 로그
 
+## 2026-01-29
+
+### 기능 추가
+
+#### dV/dQ 고급 스무딩 옵션 (`origin_datatool_dev/BatteryDataTool.py`)
+
+1. **`generate_simulation_full` 함수 확장** (라인 418-500)
+   - **새 파라미터**:
+     - `use_advanced_smoothing`: 고급 스무딩 사용 여부 (기본: False)
+     - `denoise_strength`: Wavelet 디노이즈 강도 (기본: 3.5)
+     - `Crate`: C-rate (기본: 0.2)
+     - `slope_window`: dMSMCD 윈도우 배율 (기본: 1)
+   - **기능**: Wavelet Denoising + dMSMCD 기반 스무딩 적용
+   - **기존 기능**: 100% 보존 (기본값 사용 시 동일 동작)
+
+2. **UI 위젯 추가** (라인 4428-4491)
+   - "고급 스무딩" 체크박스
+   - "Denoise" 입력 필드 (기본값: 3.5)
+   - "Slope" 입력 필드 (기본값: 1)
+
+3. **호출부 수정** (라인 12467-12471, 12536-12540)
+   - 두 `generate_simulation_full` 호출에 새 파라미터 전달
+
+---
+
 ## 2026-01-28
 
 ### 버그 수정
