@@ -38,6 +38,15 @@
      - `battery_tool_library/data_processing/pne_processor.py` (라인 84)
      - `battery_tool/data_processing/pne_processor.py` (라인 82)
      - `!bak/battery_tool/data_processing/pne_processor.py` (라인 84)
+
+6. **`pne_Profile_continue_data` 함수 타입 오류 수정**
+   - **문제**: `TypeError: Invalid value '...' for dtype 'int64'`
+   - **원인**: `.loc[:, "AccCap"]` 사용 시 int64 컬럼에 float 할당 실패
+   - **수정 파일**:
+     - `origin_datatool_dev/BatteryDataTool.py` (라인 1549, 1551)
+     - `battery_tool/data_processing/pne_processor.py` (라인 880, 882)
+   - **수정**: `.loc[:, "AccCap"]` → `["AccCap"]` 방식으로 변경
+
 ---
 
 ## 2026-01-27

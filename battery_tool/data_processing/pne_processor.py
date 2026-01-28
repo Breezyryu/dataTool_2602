@@ -877,9 +877,9 @@ def pne_Profile_continue_data(
                     ((pnecyc.Cycrawtemp[2] == 1) | (pnecyc.Cycrawtemp[2] == 2)), [0, 8, 10, 11]
                 ]
                 CycfileCap = CycfileCap.copy()
-                CycfileCap.loc[:, "AccCap"] = (CycfileCap.loc[:, 10].cumsum() - CycfileCap[11].cumsum())
+                CycfileCap["AccCap"] = (CycfileCap[10].cumsum() - CycfileCap[11].cumsum())
                 CycfileCap = CycfileCap.reset_index()
-                CycfileCap.loc[:, "AccCap"] = (CycfileCap.loc[:, "AccCap"] - CycfileCap.loc[0, "AccCap"]) / 1000
+                CycfileCap["AccCap"] = (CycfileCap["AccCap"] - CycfileCap.loc[0, "AccCap"]) / 1000
                 
                 CycfileOCV = pnecyc.Cycrawtemp.loc[(pnecyc.Cycrawtemp[2] == 3), [0, 8]]
                 CycfileCCV = pnecyc.Cycrawtemp.loc[
