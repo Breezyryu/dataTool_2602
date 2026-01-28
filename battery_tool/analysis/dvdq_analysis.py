@@ -4,9 +4,6 @@ Battery Data Tool - dV/dQ Analysis Module
 dV/dQ (Incremental Voltage) 분석 함수
 원본: origin_datatool/BatteryDataTool.py (Lines 409-441)
 
-📌 활용 스킬: scientific-critical-thinking
-
-전기화학적 배경:
     dV/dQ 분석은 배터리 열화 메커니즘을 정량적으로 분석하는 핵심 기법입니다.
     
     - dV/dQ = 전압의 미분값 / 용량의 미분값

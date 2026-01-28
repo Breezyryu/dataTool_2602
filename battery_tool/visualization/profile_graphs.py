@@ -2,9 +2,8 @@
 Battery Data Tool - Profile Graphs Module
 
 Profile(충방전 곡선) 데이터 시각화 함수
-원본: origin_datatool/BatteryDataTool.py (Lines 247-352)
+원본: BatteryDataTool.py (Lines 247-352)
 
-📌 활용 스킬: matplotlib
 """
 
 import numpy as np

@@ -5,8 +5,6 @@ battery_tool에서 GUI를 직접 실행하기 위한 진입점
 
 사용법:
     python -m battery_tool
-
-📌 활용 스킬: matplotlib, pyqt6
 """
 
 import sys
@@ -28,7 +26,7 @@ def run_app(debug: bool = False) -> int:
     # 디버그 모드 설정
     if debug:
         os.environ["QT_DEBUG_PLUGINS"] = "1"
-        print(f"🔧 Debug mode enabled")
+        print("Debug mode enabled")
     
     # battery_tool의 WindowClass import
     from battery_tool.gui.window_class import WindowClass
@@ -41,8 +39,8 @@ def run_app(debug: bool = False) -> int:
     window.setWindowTitle("Battery Data Tool (battery_tool)")
     window.show()
     
-    print("✅ Battery Data Tool GUI 시작")
-    print("📦 battery_tool 패키지에서 실행 중")
+    print("Battery Data Tool GUI 시작")
+    print("battery_tool 패키지에서 실행 중")
     
     return app.exec()
 

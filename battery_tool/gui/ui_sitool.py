@@ -3,7 +3,6 @@ Battery Data Tool - UI Definition
 
 PyQt6 UI 위젯 정의 클래스 (PyQt Designer 생성)
 
-📌 활용 스킬: pyqt6
 """
 
 from PyQt6 import QtCore, QtGui, QtWidgets

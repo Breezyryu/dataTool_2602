@@ -1,7 +1,7 @@
 """
 Battery Data Tool - GUI Package
 
-PyQt6 기반 GUI 컴포넌트 및 비즈니스 로직
+PyQt6 기반 GUI 컴포넌트
 """
 
 from .handlers import (

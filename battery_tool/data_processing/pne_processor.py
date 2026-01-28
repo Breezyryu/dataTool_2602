@@ -2,9 +2,7 @@
 Battery Data Tool - PNE Processor Module
 
 PNE 충방전기 데이터 처리 함수
-원본: origin_datatool/BatteryDataTool.py (Lines 866-950+)
-
-📌 활용 스킬: scientific-critical-thinking
+원본: BatteryDataTool.py (Lines 866-950+)
 
 충방전기 데이터 구조:
     PNE 충방전기는 Pattern 폴더와 Restore 폴더로 데이터를 저장합니다.

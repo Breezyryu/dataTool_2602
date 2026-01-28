@@ -2,9 +2,8 @@
 Battery Data Tool - DCIR Graphs Module
 
 DC 내부저항(DC-IR) 그래프 시각화 함수
-원본: origin_datatool/BatteryDataTool.py (Lines 275-290)
+원본: BatteryDataTool.py (Lines 275-290)
 
-📌 활용 스킬: matplotlib, scientific-critical-thinking
 """
 
 import numpy as np

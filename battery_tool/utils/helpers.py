@@ -2,7 +2,7 @@
 Battery Data Tool - Utility Helpers Module
 
 유틸리티 함수 모음: 날짜 변환, 용량 파싱, 충방전기 타입 감지 등
-원본: origin_datatool/BatteryDataTool.py (Lines 32-180)
+원본: BatteryDataTool.py (Lines 32-180)
 """
 
 import os

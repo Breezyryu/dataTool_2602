@@ -2,7 +2,7 @@
 Battery Data Tool - Output Module
 
 그래프 및 데이터 출력 함수
-원본: origin_datatool/BatteryDataTool.py (Lines 354-407)
+원본: BatteryDataTool.py (Lines 354-407)
 """
 
 import os

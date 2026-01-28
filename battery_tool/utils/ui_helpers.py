@@ -2,7 +2,7 @@
 Battery Data Tool - UI Helpers Module
 
 PyQt6 기반 UI 유틸리티 함수
-원본: origin_datatool/BatteryDataTool.py (Lines 134-153)
+원본: BatteryDataTool.py (Lines 134-153)
 """
 
 from PyQt6 import QtGui, QtWidgets

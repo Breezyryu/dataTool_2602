@@ -2,9 +2,8 @@
 Battery Data Tool - Cycle Graphs Module
 
 Cycle 데이터 시각화 함수
-원본: origin_datatool/BatteryDataTool.py (Lines 205-245)
+원본: BatteryDataTool.py (Lines 205-245)
 
-📌 활용 스킬: matplotlib
 """
 
 import numpy as np

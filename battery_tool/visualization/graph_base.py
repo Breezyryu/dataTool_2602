@@ -2,9 +2,8 @@
 Battery Data Tool - Graph Base Module
 
 그래프 기본 설정 함수
-원본: origin_datatool/BatteryDataTool.py (Lines 181-203)
+원본: BatteryDataTool.py (Lines 181-203)
 
-📌 활용 스킬: matplotlib
 """
 
 import numpy as np

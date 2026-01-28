@@ -2,9 +2,7 @@
 Battery Data Tool - Toyo Processor Module
 
 Toyo 충방전기 데이터 처리 함수
-원본: origin_datatool/BatteryDataTool.py (Lines 443-620+)
-
-📌 활용 스킬: scientific-critical-thinking
+BatteryDataTool.py (Lines 443-620+)
 
 충방전기 데이터 구조:
     Toyo 충방전기는 capacity.log 파일과 개별 cycle 파일로 데이터를 저장합니다.
