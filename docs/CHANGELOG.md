@@ -15,17 +15,19 @@
    - **문제**: 현황 탭의 'R5 15F' 및 '전체' 메뉴 선택 시 프로그램 종료
    - **원인**: `battery_tool.visualization` 모듈에서 함수들이 누락됨
    - **추가된 함수**:
-     - `graph_soc_set`
-     - `graph_soc_err`
-     - `graph_set_profile`
-     - `graph_set_guide`
-     - `graph_dcir`
-     - `graph_soc_dcir`
-     - `graph_simulation`
-     - `graph_eu_set`
-     - `graph_default`
-     - `output_data`
-     - `output_para_fig`
+     - `graph_soc_set`, `graph_soc_err`, `graph_set_profile`, `graph_set_guide`
+     - `graph_dcir`, `graph_soc_dcir`, `graph_simulation`, `graph_eu_set`
+     - `graph_default`, `output_data`, `output_para_fig`
+
+3. **`toyo_base_data_make` 함수 예외 처리 추가** (라인 2386-2429)
+   - **문제**: 'R5 15F'/'전체' 선택 후 Toyo 사이클러 선택 시 프로그램 종료
+   - **원인**: 네트워크 드라이브(Z:) 파일 미존재 시 `UnboundLocalError` 발생
+   - **수정**: `else` 분기 추가 - 에러 메시지 표시 및 빈 DataFrame 반환
+
+4. **`toyo_base_data_make` 함수 TypeError 수정** (라인 2419)
+   - **문제**: `TypeError: Invalid value '완료' for type 'int64'`
+   - **원인**: `int64` 타입 컬럼에 문자열 할당 시도
+   - **수정**: `used_chnl` 계산 후 `toyo_data["use"].astype(object)` 타입 변환
 
 ---
 

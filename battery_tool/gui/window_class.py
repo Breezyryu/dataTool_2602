@@ -2415,10 +2415,17 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                 toyo_data["vol"] = toyo_data['testname'].str.split(" ").str[2]
             toyo_data["cyclername"] = blkname
             used_chnl = toyo_data["use"].sum()
+            # int64 -> object 타입 변환 (문자열 할당을 위해)
+            toyo_data["use"] = toyo_data["use"].astype(object)
             toyo_data.loc[(toyo_data["chno"] == 1) & (toyo_data["use"] == 0), "use"] = "완료"
             toyo_data.loc[(toyo_data["chno"] == 0) & (toyo_data["use"] == 0), "use"] = "작업정지"
             toyo_data.loc[toyo_data["use"] == 1, "use"] = "작업중"
             toyo_data["chno"] = toyo_data.index
+        else:
+            # 파일이 없을 경우 에러 메시지 표시 및 빈 데이터 반환
+            err_msg("Toyo 데이터 없음", f"경로를 확인하세요: {toyoworkpath}")
+            toyo_data = pd.DataFrame(columns=self.toyo_column_list)
+            used_chnl = 0
         return [toyo_data, used_chnl]
 
     def toyo_data_make(self, toyo_num, blkname):
