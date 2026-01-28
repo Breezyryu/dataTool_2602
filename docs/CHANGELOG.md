@@ -23,6 +23,11 @@
 3. **호출부 수정** (라인 12467-12471, 12536-12540)
    - 두 `generate_simulation_full` 호출에 새 파라미터 전달
 
+4. **스무딩 함수 내장화** (라인 418-497)
+   - `smoothing_ref.Lib_LKS_denoise` 의존성 제거
+   - `WLD`, `dvdq_denoise`, `dMSMCD` 함수를 `BatteryDataTool.py`에 직접 포함
+   - `pywt` import 추가 (라인 21)
+
 ---
 
 ## 2026-01-28

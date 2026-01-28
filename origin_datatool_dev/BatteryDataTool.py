@@ -18,6 +18,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from datetime import timezone
 import glob
 import xlwings as xw
+import pywt  # Wavelet 디노이즈용
 
 # pip 추가 항목: xlsxwriter
 # Malgun gothic을 기본 글꼴로 설정: %s/Malgun gothic/Malgun gothic/g
@@ -414,6 +415,87 @@ def generate_params(ca_mass_min, ca_mass_max, ca_slip_min, ca_slip_max, an_mass_
     an_slip = np.random.uniform(an_slip_min, an_slip_max)
     return ca_mass, ca_slip, an_mass, an_slip
 
+#########################################################################################
+### Wavelet Denoising (WLD) - smoothing_ref.Lib_LKS_denoise에서 이동
+#########################################################################################
+def WLD(y, denoise_strength: float = 1.0, wavelet: str = 'bior6.8', mode: str = 'soft'):
+    """
+    Wavelet Denoising (WLD). VisuShrink 임계값을 사용하여 노이즈를 제거합니다.
+    denoise_strength : threshold multiplier
+    wavelet options : 'db4','db8','bior3.5','bior6.8','sym5' etc
+    """
+    y_val = np.asarray(y).copy()
+    y_val_copy = y_val[1:].copy()
+    y_val_pad = np.pad(y_val_copy, 50, mode='edge')
+
+    rolls = []
+    for i in range(10):
+        y_val_roll = np.roll(y_val_pad, i-5)
+        coeffs = pywt.wavedec(y_val_roll, wavelet)
+        detail = coeffs[-1]
+
+        # MAD 기반 노이즈 추정
+        sigma = np.median(np.abs(detail - np.median(detail))) / 0.6745
+        threshold = sigma * np.sqrt(2 * np.log(len(y_val))) * denoise_strength
+
+        new_coeffs = [coeffs[0]]
+        for j in range(1, len(coeffs)):
+            new_coeffs.append(pywt.threshold(coeffs[j], threshold, mode=mode))
+
+        y_denoised_roll = pywt.waverec(new_coeffs, wavelet)
+
+        if len(y_denoised_roll) > len(y_val_roll):
+            y_denoised_roll = y_denoised_roll[:len(y_val_roll)]
+        elif len(y_denoised_roll) < len(y_val_roll):
+            y_denoised_roll = np.pad(y_denoised_roll, (0, len(y_val_roll)-len(y_denoised_roll)), mode='edge')
+
+        y_val_unroll = np.roll(y_denoised_roll, -(i-5))
+        rolls.append(y_val_unroll)
+
+    rolls = np.array(rolls)
+    y_denoised = y_val.copy()
+    y_denoised[1:] = np.median(rolls, axis=0)[50:-50]
+
+    return y_denoised
+
+def dvdq_denoise(y, denoise_strength: float = 1.0):
+    """
+    여러 wavelet을 사용한 앙상블 Wavelet Denoising.
+    denoise_strength : threshold multiplier
+    """
+    ws1 = ['bior', 'rbio']
+    ws2 = ['2.6', '2.8', '3.7', '3.9', '6.8']
+    ws = [w1 + w2 for w1 in ws1 for w2 in ws2]
+    y_val = np.asarray(y).copy()
+    y_denoised = np.nanmedian(np.array([WLD(y_val.copy(), denoise_strength, w) for w in ws]), axis=0)
+    return y_denoised
+
+#########################################################################################
+### Multi-Scale Median Centered Difference (dMSMCD) - smoothing_ref.Lib_LKS_denoise에서 이동
+#########################################################################################
+def dMSMCD(y, max_window: int):
+    """
+    다중 스케일 중앙 차분 기반 미분 계산.
+    여러 윈도우 크기의 기울기 중 median을 반환하여 노이즈에 강건함.
+    """
+    y_val = np.asarray(y).copy()
+    n = len(y_val)
+    slopes_list = []
+    v_padded = np.pad(y_val, pad_width=1, mode='edge')
+    interpolated_values = (v_padded[:-1] + v_padded[1:]) / 2
+
+    for i in range(max_window):
+        slope = np.full(n, np.nan, dtype=np.float64)
+        if i % 2 == 0:
+            j = (i + 1) // 2
+            slope[(j+1):-(j+1)] = ((interpolated_values[(i+1):] - interpolated_values[:-(i+1)]) / (i+1))[1:-1]
+            slopes_list.append(slope)
+    
+    slopes_array = np.stack(slopes_list, axis=1)
+    median_slope = np.nanmedian(slopes_array, axis=1)
+
+    return {'median': median_slope, 'all': slopes_array}
+
 # 전체 결과 기반 dataframe 생성 함수
 def generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, ca_mass, ca_slip, an_mass, an_slip,
                              full_cell_max_cap, rated_cap, full_period,
@@ -459,37 +541,26 @@ def generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, ca_mass, ca_slip,
     # 미분값 생성
     if use_advanced_smoothing:
         # === 고급 스무딩 (Wavelet + dMSMCD) ===
-        try:
-            from smoothing_ref.Lib_LKS_denoise import denoise, dMSMCD as slope
-            
-            # dt 추정 (데이터 간격)
-            cap_diff = simul_full.full_cap.diff().median()
-            max_window = max(int(slope_window * 12 / Crate / cap_diff), 1)
-            
-            # 1) 전압 디노이즈
-            an_volt_denoised = denoise(simul_full.an_volt.values, denoise_strength)
-            ca_volt_denoised = denoise(simul_full.ca_volt.values, denoise_strength)
-            real_volt_denoised = denoise(simul_full.real_volt.values, denoise_strength)
-            
-            # 2) dMSMCD 기반 미분
-            an_slope = slope(an_volt_denoised, max_window)['median']
-            ca_slope = slope(ca_volt_denoised, max_window)['median']
-            real_slope = slope(real_volt_denoised, max_window)['median']
-            cap_slope = slope(simul_full.full_cap.values, max_window)['median']
-            
-            # 3) dV/dQ 계산
-            simul_full["an_dvdq"] = an_slope / cap_slope
-            simul_full["ca_dvdq"] = ca_slope / cap_slope
-            simul_full["real_dvdq"] = real_slope / cap_slope
-            simul_full["full_dvdq"] = simul_full["ca_dvdq"] - simul_full["an_dvdq"]
-            
-        except ImportError:
-            # 라이브러리 없을 시 기존 방식으로 fallback
-            print("Warning: smoothing_ref 라이브러리 없음. 기존 방식 사용.")
-            simul_full["an_dvdq"] = simul_full.an_volt.diff(periods=full_period) / simul_full.full_cap.diff(periods=full_period)
-            simul_full["ca_dvdq"] = simul_full.ca_volt.diff(periods=full_period) / simul_full.full_cap.diff(periods=full_period)
-            simul_full["real_dvdq"] = simul_full.real_volt.diff(periods=full_period) / simul_full.full_cap.diff(periods=full_period)
-            simul_full["full_dvdq"] = simul_full["ca_dvdq"] - simul_full["an_dvdq"]
+        # dt 추정 (데이터 간격)
+        cap_diff = simul_full.full_cap.diff().median()
+        max_window = max(int(slope_window * 12 / Crate / cap_diff), 1)
+        
+        # 1) 전압 디노이즈
+        an_volt_denoised = dvdq_denoise(simul_full.an_volt.values, denoise_strength)
+        ca_volt_denoised = dvdq_denoise(simul_full.ca_volt.values, denoise_strength)
+        real_volt_denoised = dvdq_denoise(simul_full.real_volt.values, denoise_strength)
+        
+        # 2) dMSMCD 기반 미분
+        an_slope = dMSMCD(an_volt_denoised, max_window)['median']
+        ca_slope = dMSMCD(ca_volt_denoised, max_window)['median']
+        real_slope = dMSMCD(real_volt_denoised, max_window)['median']
+        cap_slope = dMSMCD(simul_full.full_cap.values, max_window)['median']
+        
+        # 3) dV/dQ 계산
+        simul_full["an_dvdq"] = an_slope / cap_slope
+        simul_full["ca_dvdq"] = ca_slope / cap_slope
+        simul_full["real_dvdq"] = real_slope / cap_slope
+        simul_full["full_dvdq"] = simul_full["ca_dvdq"] - simul_full["an_dvdq"]
     else:
         # === 기존 방식 (단순 diff) ===
         simul_full["an_dvdq"] = simul_full.an_volt.diff(periods=full_period) / simul_full.full_cap.diff(periods=full_period)
