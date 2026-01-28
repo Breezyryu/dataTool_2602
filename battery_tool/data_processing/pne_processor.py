@@ -79,7 +79,7 @@ def pne_search_cycle(rawdir: str, start: int, end: int) -> List[int]:
                 index_file = rawdir + "savingFileIndex_start.csv"
                 if os.path.isfile(index_file):
                     df2 = pd.read_csv(
-                        index_file, delim_whitespace=True, skiprows=0,
+                        index_file, sep=r'\s+', skiprows=0,
                         engine="c", header=None, encoding="cp949", on_bad_lines='skip'
                     )
                     df2 = df2.loc[:, 3].tolist()

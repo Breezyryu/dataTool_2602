@@ -29,6 +29,15 @@
    - **원인**: `int64` 타입 컬럼에 문자열 할당 시도
    - **수정**: `used_chnl` 계산 후 `toyo_data["use"].astype(object)` 타입 변환
 
+5. **pandas 2.2+ 호환성 수정** (`delim_whitespace` → `sep=r'\s+'`)
+   - **문제**: `TypeError: read_csv() got an unexpected keyword argument 'delim_whitespace'`
+   - **원인**: pandas 2.2에서 `delim_whitespace` 파라미터 제거됨
+   - **수정 파일**:
+     - `origin_datatool_dev/BatteryDataTool.py` (라인 904)
+     - `origin_datatool/BatteryDataTool.py` (라인 904)
+     - `battery_tool_library/data_processing/pne_processor.py` (라인 84)
+     - `battery_tool/data_processing/pne_processor.py` (라인 82)
+     - `!bak/battery_tool/data_processing/pne_processor.py` (라인 84)
 ---
 
 ## 2026-01-27
