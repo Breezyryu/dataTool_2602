@@ -16,11 +16,10 @@ warnings.simplefilter("ignore", category=RuntimeWarning)
 
 UNIT = UNIT_check() # {'t': u.sec, 'V': u.V, 'I': u.A, 'Q': u.Ah, 'T': u.deg_C3}
 
-FILE_Fullcell = './Gen4P 4905mAh HHP ATL 055CY - 복사본.txt'
-# FILE_Anode    = './S25_291_anode_dchg_02C - 복사본.txt'
-# FILE_Cathode  = './S25_291_cathode_dchg_02C - 복사본.txt'
+FILE_Fullcell = './dvdqraw/Gen4P 4905mAh HHP ATL 055CY - 복사본.txt'
+FILE_Anode    = './dvdqraw/S25_291_anode_dchg_02C - 복사본.txt'
+FILE_Cathode  = './dvdqraw/S25_291_cathode_dchg_02C - 복사본.txt'
 
 DATA_Fullcell = example(FILE_Fullcell, denoise_strength=3.5, Crate=0.2, slope_window=2)
-# DATA_Anode    = example(FILE_Anode, denoise_strength=3.5, Crate=0.2, slope_window=120)
-# DATA_Cathode  = example(FILE_Cathode, denoise_strength=3.5, Crate=0.2, slope_window=2)
-
+DATA_Anode    = example(FILE_Anode, denoise_strength=3.5, Crate=0.2, slope_window=120)
+DATA_Cathode  = example(FILE_Cathode, denoise_strength=3.5, Crate=0.2, slope_window=2)

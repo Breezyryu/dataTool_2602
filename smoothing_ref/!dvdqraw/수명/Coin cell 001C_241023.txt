@@ -1,0 +1,5 @@
+
+cyclename	cyclepath
+Gen4     (HHP-coin)/SDI/	Z:\BLOCK-4 (T5200)\RST\241021 선행랩 류성택 GEN4-13C-SDI-Cathode-5mAh-001C-capacity
+Gen4     (HHP-coin)/SDI/	Z:\BLOCK-4 (T5200)\RST\241021 선행랩 류성택 GEN4-13C-SDI-Anode-5_2mA-001C-capacity
+

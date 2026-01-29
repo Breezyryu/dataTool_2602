@@ -1,0 +1,6 @@
+
+cyclename	cyclepath
+Gen4     (HHP)  	u:\PNE19\선행Lab\류성택\240722 선행랩 류성택 Gen4 SDI-13C-450V-4512mAh-GITT01C-23도\
+Gen4 Gr  (mini)  	u:\PNE19\선행Lab\류성택\240722 선행랩 류성택 Gen4pGr ATL-450V-422mAh-GITT01C-23도\
+Gen4+ Si (mini)  	u:\PNE19\선행Lab\류성택\240722 선행랩 류성택 Gen4pSi ATL-450V-451mAh-GITT01C-23도\
+Gen4+ Si (HHP)  	u:\PNE18\선행랩\류성택\240820 선행랩 류성택 Gen4p-20C-4905mAh-WD-HHP-Proto-DOE1-GITT01C-23도\

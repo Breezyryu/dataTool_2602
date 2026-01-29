@@ -1,0 +1,6 @@
+
+cyclename	cyclepath
+Gen4     (HHP) 450V-320V	u:\PNE17\선행Lab\류성택\240726 선행랩 류성택 Gen4 SDI-450V-13C-4512mAh-Rss일반수명-15도\
+Gen4 Gr  (mini) 450V-300V	u:\PNE17\선행Lab\류성택\240726 선행랩 류성택 Gen4pGr ATL-450V-422mAh-Rss일반수명-15도\
+Gen4+ Si (mini) 450V-300V	u:\PNE17\선행Lab\류성택\240726 선행랩 류성택 Gen4pSi ATL-450V-451mAh-Rss일반수명-15도\
+Gen4+ Si (HHP) 450V-300V	u:\PNE17\선행Lab\류성택\240821 선행랩 류성택 Gen4p-20C-4905mAh-ATL-HHP-WD-Proto-DOE1-수명1500cy-45V-30V-15도\

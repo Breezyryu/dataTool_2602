@@ -19,6 +19,7 @@ from datetime import timezone
 import glob
 import xlwings as xw
 import pywt  # Wavelet 디노이즈용
+from scipy.signal import find_peaks  # dV/dQ 피크 탐색용
 
 # pip 추가 항목: xlsxwriter
 # Malgun gothic을 기본 글꼴로 설정: %s/Malgun gothic/Malgun gothic/g
@@ -12433,6 +12434,27 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         ax2.set_xlabel("SOC")
         ax2.set_ylabel("dVdQ")
         ax2.grid(which="major", axis="both", alpha=0.5)
+        
+        # dV/dQ 피크 탐색 (실측 데이터 기준)
+        real_dvdq_clean = simul_full.real_dvdq.fillna(0).values
+        full_cap = simul_full.full_cap.values
+        real_volt = simul_full.real_volt.values
+        
+        if len(real_dvdq_clean) > 20:
+            # 피크 검출 (prominence 기반)
+            prominence = np.abs(np.percentile(real_dvdq_clean, 95) - np.percentile(real_dvdq_clean, 5)) * 0.1
+            peaks_idx, _ = find_peaks(np.abs(real_dvdq_clean), prominence=prominence, distance=len(real_dvdq_clean)//20)
+            
+            if len(peaks_idx) > 0:
+                # dV/dQ 그래프에 피크 마커 표시
+                ax2.scatter(full_cap[peaks_idx], real_dvdq_clean[peaks_idx], c='red', s=60, zorder=10,
+                           marker='v', edgecolors='black', linewidth=1, label=f'Peak ({len(peaks_idx)}개)')
+                # Voltage 그래프에도 같은 위치 표시
+                ax1.scatter(full_cap[peaks_idx], real_volt[peaks_idx], c='red', s=60, zorder=10,
+                           marker='o', edgecolors='black', linewidth=1, label='Peak 위치')
+                ax1.legend(["음극", "양극", "예측", "실측", "Peak 위치"])
+                ax2.legend(["음극 dVdQ", "양극 dVdQ", "예측 dVdQ", "실측 dVdQ", f"Peak ({len(peaks_idx)}개)"])
+        
         fig.subplots_adjust(top=0.92, bottom=0.08, left=0.10, right=0.95, hspace=0.25, wspace=0.35)
         # chtname = real_filepath.split("/")
         fig.legend()

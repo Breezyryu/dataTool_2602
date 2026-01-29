@@ -1,0 +1,4 @@
+
+cyclename	cyclepath
+Gen4+ Si (mini) 444V-300V	u:\PNE19\선행Lab\류성택\240729 선행랩 류성택 Gen4pSi ATL-30V-444V-451mAh-Rss수명1500-23도
+Gen4+ Si (mini) 444V-300V	u:\PNE18\선행랩\류성택\241113 선행랩 류성택 Gen4pSi mini-ATL-WD-Proto-451mAh-20C-300V-444V-Rss수명-600-1500-23도

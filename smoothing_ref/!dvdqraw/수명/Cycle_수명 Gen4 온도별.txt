@@ -1,0 +1,5 @@
+
+cyclename	cyclepath
+Gen4     (HHP)/SDI/15도/450V-300V	U:\PNE17\선행Lab\류성택\240726 선행랩 류성택 Gen4 SDI-450V-13C-4512mAh-Rss일반수명-15도
+
+

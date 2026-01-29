@@ -1,0 +1,5 @@
+
+cyclename	cyclepath
+Gen4     (HHP)/SDI/ 	U:\PNE17\선행Lab\류성택\240913 선행랩 류성택 Gen4 HHP-SDI-ST-MP2-4512mAh-20C-450V-율별방전-15도
+Gen4     (HHP)/SDI/ 	U:\PNE19\선행Lab\류성택\240722 선행랩 류성택 Gen4 HHP-SDI-ST-MP2-4512mAh-13C-450V-RateDischarge-23도
+Gen4     (HHP)/SDI/	U:\PNE20\선행랩\류성택\240913 선행랩 류성택 Gen4 HHP-SDI-ST-MP2-4512mAh-13C-450V-율별방전-45도

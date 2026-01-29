@@ -1,0 +1,4 @@
+
+cyclename	cyclepath
+Gen4+ Gr 450V-300V	u:\PNE19\선행Lab\류성택\240726 선행랩 류성택 Gen4pGr ATL-450V-300V-422mAh-Rss수명1500cy-23도\
+Gen4+ Gr 450V-320V	u:\PNE19\선행Lab\류성택\240726 선행랩 류성택 Gen4pGr ATL-450V-320V-422mAh-Rss수명1500cy-23도\

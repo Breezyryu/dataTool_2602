@@ -1,0 +1,5 @@
+
+cyclename	cyclepath
+Gen4 Gr  (mini)  	u:\PNE17\선행Lab\류성택\240726 선행랩 류성택 Gen4pGr ATL-450V-422mAh-HPPC-15도\
+Gen4 Gr  (mini)  	u:\PNE19\선행Lab\류성택\240726 선행랩 류성택 Gen4pGr ATL-450V-422mAh-HPPC-23도\
+Gen4 Gr  (mini)  	u:\PNE20\선행랩\류성택\240726 선행랩 류성택 Gen4pGr ATL-450V-422mAh-HPPC-45도\
