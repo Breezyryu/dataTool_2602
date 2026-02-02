@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit, root_scalar
 from scipy.stats import linregress
+from scipy.signal import savgol_filter
 from datetime import datetime
 from tkinter import filedialog, Tk
 from PyQt6 import QtCore, QtGui, QtWidgets
@@ -426,7 +427,8 @@ def generate_params(ca_mass_min, ca_mass_max, ca_slip_min, ca_slip_max, an_mass_
 
 # 전체 결과 기반 dataframe 생성 함수
 def generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, ca_mass, ca_slip, an_mass, an_slip,
-                             full_cell_max_cap, rated_cap, full_period):
+                             full_cell_max_cap, rated_cap, full_period, 
+                             enable_smoothing=True, smooth_window=21, smooth_poly=3):
     # 용량 보정
     ca_ccv_raw.ca_cap_new = ca_ccv_raw.ca_cap * ca_mass - ca_slip
     an_ccv_raw.an_cap_new = an_ccv_raw.an_cap * an_mass - an_slip
@@ -435,6 +437,20 @@ def generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, ca_mass, ca_slip,
     simul_full_ca_volt = np.interp(simul_full_cap, ca_ccv_raw.ca_cap_new, ca_ccv_raw.ca_volt)
     simul_full_an_volt = np.interp(simul_full_cap, an_ccv_raw.an_cap_new, an_ccv_raw.an_volt)
     simul_full_real_volt = np.interp(simul_full_cap, real_raw.real_cap, real_raw.real_volt)
+    
+    # Smoothing Application (Savitzky-Golay)
+    # Apply to Voltage data before dV/dQ calculation
+    if enable_smoothing:
+        try:
+            # Ensure window size is odd and less than data length
+            if smooth_window % 2 == 0: smooth_window += 1
+            if len(simul_full_cap) > smooth_window:
+                simul_full_ca_volt = savgol_filter(simul_full_ca_volt, smooth_window, smooth_poly)
+                simul_full_an_volt = savgol_filter(simul_full_an_volt, smooth_window, smooth_poly)
+                simul_full_real_volt = savgol_filter(simul_full_real_volt, smooth_window, smooth_poly)
+        except Exception as e:
+            print(f"Warning: Smoothing failed. {e}")
+
     # 예측되는 full 셀 전압 계산
     simul_full_volt = simul_full_ca_volt - simul_full_an_volt
     # 전체 결과 데이터프레임 생성
@@ -531,8 +547,6 @@ def toyo_cycle_data(raw_file_path, mincapacity, inirate, chkir):
 
         # 1. Handle Discharge Start Offset (Vectorized-ish)
         # If first row is Cond 2 and Cycle 1, verify if we need to drop.
-        # Logic: If row 0 is Cond 2, drop it and shift Cycle count maybe?
-        # Original logic: if Cycleraw.loc[0, "Condition"] == 2 ... drop 0.
         if not Cycleraw.empty and Cycleraw.iloc[0]["Condition"] == 2:
              if len(Cycleraw) > 1 and Cycleraw.iloc[1]["TotlCycle"] == 1:
                   # Decrement TotlCycle for Discharge rows
@@ -542,33 +556,19 @@ def toyo_cycle_data(raw_file_path, mincapacity, inirate, chkir):
 
         # 2. Vectorized Merging of Consecutive Conditions
         # Identify groups of consecutive identical conditions
-        # (Cond != Cond.shift).cumsum() creates a unique ID for each contiguous block
         Cycleraw["group_id"] = (Cycleraw["Condition"] != Cycleraw["Condition"].shift()).cumsum()
         
-        # Aggregation rules
-        # Cap[mAh] -> sum
-        # Pow[mWh] -> sum
-        # Ocv -> take last (as per original logic: row[i+1].Ocv = row[i].Ocv is wrong, 
-        # actually original: row[i+1].Ocv = row[i].Ocv means PREVIOUS value overwrites? 
-        # Wait, original: Cycleraw.loc[i + 1, "Ocv"] = Cycleraw.loc[i, "Ocv"] (if Cond 1)
-        # This implies we want the FIRST value of the group for Ocv?
-        # Let's re-read carefully: "Cycleraw.loc[i + 1, "Ocv"] = Cycleraw.loc[i, "Ocv"]"
-        # Since we keep i+1 and drop i, we are carrying forward 'i's OCV to 'i+1'.
-        # So effectively, for a group, we want the OCV of the FIRST row.
-        
         agg_rules = {
-            "TotlCycle": "last", # Cycle no seems to be decremented in original? No, commented out.
+            "TotlCycle": "last",
             "Condition": "last",
             "Cap[mAh]": "sum",
             "Pow[mWh]": "sum",
-            "Ocv": "first", # Based on analysis above
-            "AveVolt[V]": "last", # Will be recalculated
-            "PeakTemp[Deg]": "max", # Assuming max temp is relevant
+            "Ocv": "first",
+            "AveVolt[V]": "last", 
+            "PeakTemp[Deg]": "max",
             "Finish": "last",
             "OriCycle": "last"
         }
-        # Add other columns to keep 'last' or 'first' as needed.
-        # For columns not in rule, we might lose them. Let's include important ones.
         for col in Cycleraw.columns:
             if col not in agg_rules and col != "group_id":
                 agg_rules[col] = "last"
@@ -576,13 +576,11 @@ def toyo_cycle_data(raw_file_path, mincapacity, inirate, chkir):
         Cycleraw = Cycleraw.groupby("group_id").agg(agg_rules).reset_index(drop=True)
         
         # Recalculate AveVolt[V]
-        # Avoid division by zero
         mask_nonzero = Cycleraw["Cap[mAh]"] != 0
         Cycleraw.loc[mask_nonzero, "AveVolt[V]"] = Cycleraw.loc[mask_nonzero, "Pow[mWh]"] / Cycleraw.loc[mask_nonzero, "Cap[mAh]"]
 
         # 3. Filtering (Vectorized)
         # Charge Data
-        # Condition 1, Finish not Vol/Volt, Cap > min/60
         cond_chg = (Cycleraw["Condition"] == 1) & \
                    (~Cycleraw["Finish"].isin(["                 Vol", "Volt"])) & \
                    (Cycleraw["Cap[mAh]"] > (mincapacity/60))
@@ -592,7 +590,6 @@ def toyo_cycle_data(raw_file_path, mincapacity, inirate, chkir):
         Ocv = chgdata["Ocv"]
 
         # 4. DCIR Prep
-        # Condition 2, Finish is Tim/Time, Cap < min/60
         cond_dcir = (Cycleraw["Condition"] == 2) & \
                     (Cycleraw["Finish"].str.strip().isin(["Tim", "Time"])) & \
                     (Cycleraw["Cap[mAh]"] < (mincapacity/60))
@@ -611,27 +608,15 @@ def toyo_cycle_data(raw_file_path, mincapacity, inirate, chkir):
         Chg2 = Chg.shift(periods=-1)
 
         # 6. DCIR Calculation Loop
-        # This part requires IO, hard to fully vectorize without reading all files.
-        # But we can cleaner logical indexing.
-        # We will keep the loop but optimize the DataFrame creation inside.
-        
-        # Initialize dcir column
         dcir["dcir"] = np.nan
         
-        # Pre-filter files to avoid checking existence 1000 times if possible, 
-        # but pattern matching is specific.
-        # We'll just run the loop - it's IO bound.
         for cycle in dcir["TotlCycle"]:
             fpath = raw_file_path + "\\%06d" % cycle
             if os.path.isfile(fpath):
-                 # Optimize read: only needed columns
                  try:
-                     # Peek first line or just read. reading full file is necessary.
-                     # Using "usecols" could speed up if we knew indices, but names vary.
                      dcirpro = pd.read_csv(fpath, sep=",", skiprows=3, engine="c", 
                                            encoding="cp949", on_bad_lines='skip')
                      
-                     # Provide mappings for robustness from helper
                      col_map = {
                          "Voltage[V]": ["Voltage[V]", "Voltage"],
                          "Current[mA]": ["Current[mA]", "Current"],
@@ -639,7 +624,6 @@ def toyo_cycle_data(raw_file_path, mincapacity, inirate, chkir):
                          "PassTime[Sec]": ["PassTime[Sec]", "Passed Time[Sec]"]
                      }
                      
-                     # Simple Column Normalization
                      for std_col, alts in col_map.items():
                          for alt in alts:
                              if alt in dcirpro.columns:
@@ -654,32 +638,19 @@ def toyo_cycle_data(raw_file_path, mincapacity, inirate, chkir):
                              i_max = dcircal["Current[mA]"].max()
                              if i_max != 0:
                                  val = (v_max - v_min) / round(i_max) * 1000000
-                                 # Vectorized assignment using index
                                  dcir.loc[dcir["TotlCycle"] == cycle, "dcir"] = val
                  except Exception:
                      continue
 
         # 7. Final DataFrame Construction
-        # Align indices
-        # Generate 'n' sequence (Optimization of the n/dcirstep logic)
-        # If chkir is false, we have complex stepping logic.
-        
         cyccal = []
         if not dcir.empty:
             if chkir:
                 cyccal = range(1, len(dcir) + 1)
             else:
-                # Replicating original logic
-                # if (len(Dchg)/(len(dcir)/2)) >= 10: ...
                 if len(Dchg) > 0:
                      ratio = len(Dchg) / (len(dcir) / 2)
                      dcirstep = (int(ratio/10) + 1) * 10 if ratio >= 10 else int(ratio) + 1
-                     
-                     # Generate sequence: 1, 1, n, n, n+step, n+step...
-                     # Original: 
-                     # i=0 (even) -> n=1
-                     # i=1 (odd) -> n=1+step-1 -> step
-                     # It seems intricate. Let's keep the logic but simpler loop.
                      n = 1
                      for i in range(len(dcir)):
                          cyccal.append(n)
@@ -688,22 +659,9 @@ def toyo_cycle_data(raw_file_path, mincapacity, inirate, chkir):
                          else:
                              n += dcirstep - 1
                 else:
-                    cyccal = range(1, len(dcir) + 1) # Fallback
+                    cyccal = range(1, len(dcir) + 1)
 
         dcir["Cyc"] = cyccal
-        
-        # Set indices to TotlCycle for merging
-        # Note: The original returned df uses a range index or specific alignment?
-        # Original: df.NewData = pd.concat(...) with reset_index.
-        # So we align by position or Cycle?
-        # Original code pivots PNE data but for Toyo it seems to trust the filtered arrays match?
-        # "Dchg = Dchgdata["Cap[mAh]"]" -> filtered
-        # "Chg = chgdata["Cap[mAh]"]" -> filtered separately
-        # If sizes differ, concat will misalign or fill NaN.
-        # Original code assumed alignment. We'll proceed with concat(axis=1) which aligns by Index if available.
-        # But we set "chgdata.index = chgdata["TotlCycle"]".
-        # If Charge and Discharge cycles don't match 1:1, this breaks.
-        # Assuming Data has pairs. For robustness, we reset index to align.
         
         Dchg = Dchg.reset_index(drop=True)
         Ocv = Ocv.reset_index(drop=True)
@@ -714,36 +672,14 @@ def toyo_cycle_data(raw_file_path, mincapacity, inirate, chkir):
         AvgV = AvgV.reset_index(drop=True)
         OriCycle = OriCycle.reset_index(drop=True)
         
-        # Calculate Efficiencies (Vectorized)
         Eff = Dchg.div(Chg).replace([np.inf, -np.inf], np.nan)
         Eff2 = Chg2.div(Dchg).replace([np.inf, -np.inf], np.nan) 
         
-        # DCIR Handling
-        # The logic for `dcir` dataframe merging is specific in original code
-        # "dcir = dcir.set_index(dcir["Cyc"])" 
-        # But here Cyc is calculated.
-        # Let's create the 'dcir' Series aligned with Dchg.
-        
-        # dcir_series needs to be mapped to the main frame
-        # If chkir is True, dcir matches row by row?
-        # "if chkir and len(OriCycle) == len(dcir):"
-        
         dcir_vals = pd.Series(0, index=Dchg.index)
-        
-        # Map dcir values based on Cyc?
-        # The original code's logic for dcir mapping:
-        # if chkir is true, just concat dcir["dcir"] (assuming length match)
-        # else: map using "Cyc"?
-        # It seems "df.NewData.loc[0, "dcir"] = 0" implies it's just one column.
         
         if chkir and len(Dchg) == len(dcir):
              dcir_vals = dcir["dcir"].reset_index(drop=True)
         elif not chkir:
-             # Logic to map sparse DCIR to full cycles?
-             # Original code:
-             # if isinstance(dcir, pd.Series)... df.NewData["dcir"] = dcir
-             # It seems it expects dcir to be aligned.
-             # We will leave as 0 or aligned if sizes match.
              if len(dcir) == len(Dchg):
                  dcir_vals = dcir["dcir"].reset_index(drop=True)
         
@@ -751,7 +687,6 @@ def toyo_cycle_data(raw_file_path, mincapacity, inirate, chkir):
         df.NewData.columns = ["Dchg", "RndV", "Eff", "Chg", "DchgEng", "Eff2", "dcir", "Temp", "AvgV", "OriCyc"]
 
     return [mincapacity, df]
-
 
 # Toyo Step charge Profile data 처리
 def toyo_step_Profile_data(raw_file_path, inicycle, mincapacity, cutoff, inirate):
@@ -1267,23 +1202,10 @@ def pne_cycle_data(raw_file_path, mincapacity, ini_crate, chkir, chkir2, mkdcir)
                         Cycleraw = pd.read_csv(raw_file_path + "\\Restore\\" + files, sep=",", skiprows=0, engine="c",
                                                header=None, encoding="cp949", on_bad_lines='skip')
                         
-                        # Optimization: Dynamic Column Mapping (Robustness)
-                        # Attempting to map standard PNE columns; fallback to hardcoded if headerless
-                        # Note: The original code assumes NO header (header=None), so we use indices.
-                        # If future CSVs have headers, we would use get_col_idx. 
-                        # For now, we stick to the indices but document them clearly.
-                        
-                        # 27:TotlCycle, 2:Condition, 10:chgCap, 11:DchgCap, 8:Voltage, 20:imp, 45:volmax
-                        # 15:DchgWattHour, 17:StepTime, 9:Current, 24:Temp, 29:AverageVoltage, 6:EndState
-                        
                         target_cols = [27, 2, 10, 11, 8, 20, 45, 15, 17, 9, 24, 29, 6]
-                        # Verify columns exist before selection to prevent crash
                         existing_cols = [c for c in target_cols if c in Cycleraw.columns]
                         Cycleraw = Cycleraw[existing_cols]
                         
-                        # Renaming logic - ensure length matches
-                        # If some columns are missing from source (e.g. old PNE format), this needs handling.
-                        # Assuming standard format for now as per original code.
                         Cycleraw.columns = ["TotlCycle", "Condition", "chgCap", "DchgCap", "Ocv", "imp", "volmax",
                                             "DchgEngD", "steptime", "Curr", "Temp", "AvgV", "EndState"]
 
