@@ -12432,7 +12432,6 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         for i in range(int(self.dvdq_test_no.text())):
             ca_mass, ca_slip, an_mass, an_slip = generate_params(ca_mass_min, ca_mass_max, ca_slip_min, ca_slip_max, an_mass_min, an_mass_max,
                                                                  an_slip_min, an_slip_max)
-                                                                 an_slip_min, an_slip_max)
             simul_full = generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, ca_mass, ca_slip, an_mass, an_slip, full_cell_max_cap,
                                                   dvdq_min_cap, full_period, use_gp=self.dvdq_gp_chk.isChecked())
             # 지정 영역에서만 rms 산정
