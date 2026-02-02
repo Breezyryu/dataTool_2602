@@ -4433,6 +4433,11 @@ class Ui_sitool(object):
         self.dvdq_full_smoothing_no.setInputMethodHints(QtCore.Qt.InputMethodHint.ImhFormattedNumbersOnly)
         self.dvdq_full_smoothing_no.setObjectName("dvdq_full_smoothing_no")
         self.horizontalLayout_142.addWidget(self.dvdq_full_smoothing_no)
+        self.verticalLayout_22.addLayout(self.horizontalLayout_142)
+        
+        # GP Smoothing Checkbox in a new layout
+        self.horizontalLayout_gp = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_gp.setObjectName("horizontalLayout_gp")
         self.dvdq_gp_chk = QtWidgets.QCheckBox(parent=self.dvdq)
         font = QtGui.QFont()
         font.setFamily("맑은 고딕")
@@ -4440,8 +4445,8 @@ class Ui_sitool(object):
         self.dvdq_gp_chk.setFont(font)
         self.dvdq_gp_chk.setObjectName("dvdq_gp_chk")
         self.dvdq_gp_chk.setText("GP Smoothing")
-        self.horizontalLayout_142.addWidget(self.dvdq_gp_chk)
-        self.verticalLayout_22.addLayout(self.horizontalLayout_142)
+        self.horizontalLayout_gp.addWidget(self.dvdq_gp_chk)
+        self.verticalLayout_22.addLayout(self.horizontalLayout_gp)
         self.line_11 = QtWidgets.QFrame(parent=self.dvdq)
         self.line_11.setMinimumSize(QtCore.QSize(656, 3))
         self.line_11.setMaximumSize(QtCore.QSize(656, 3))
