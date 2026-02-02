@@ -12218,15 +12218,25 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         ax2 = plt.subplot(2, 1, 2)
         toolbar = NavigationToolbar(canvas, None)
         # Voltage Profile 그리기
-        ax1.plot(simul_full.full_cap, simul_full.an_volt, "-", color = "b")
-        ax1.plot(simul_full.full_cap, simul_full.ca_volt, "-", color = "r")
-        ax1.plot(simul_full.full_cap, simul_full.full_volt, "--", color = "g")
-        ax1.plot(simul_full.full_cap, simul_full.real_volt, "-", color = "k")
-        ax1.set_ylim(0, 4.7)
+        # Voltage Profile 그리기
+        ax1_right = ax1.twinx()
+        lns1 = ax1_right.plot(simul_full.full_cap, simul_full.an_volt, "-", color = "b", label="음극")
+        lns2 = ax1.plot(simul_full.full_cap, simul_full.ca_volt, "-", color = "r", label="양극")
+        lns3 = ax1.plot(simul_full.full_cap, simul_full.full_volt, "--", color = "g", label="예측")
+        lns4 = ax1.plot(simul_full.full_cap, simul_full.real_volt, "-", color = "k", label="실측")
+        
+        ax1.set_ylim(2.0, 4.6)
+        ax1_right.set_ylim(0, 1.5)
         ax1.set_xticks(np.linspace(-5, 105, 23))
-        ax1.legend(["음극", "양극", "예측", "실측"])
+
+        lns = lns1 + lns2 + lns3 + lns4
+        labs = [l.get_label() for l in lns]
+        ax1.legend(lns, labs)
+
         ax1.set_xlabel("SOC")
         ax1.set_ylabel("Voltage")
+        ax1_right.set_ylabel("Anode Voltage", color="b")
+        ax1_right.tick_params(axis="y", labelcolor="b")
         ax1.grid(which="major", axis="both", alpha=0.5)
         # dVdQ 그래프 그리기
         ax2.plot(simul_full.full_cap, simul_full.an_dvdq, "-", color = "b")
