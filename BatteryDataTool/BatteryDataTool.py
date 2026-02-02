@@ -901,7 +901,7 @@ def pne_search_cycle(rawdir, start, end):
                 index_max = df.loc[(df.loc[:,27] == end), 0].tolist()
                 if not index_max:
                     index_max = df.loc[(df.loc[:,27] == df.loc[:,27].max()), 0].tolist()
-                df2 = pd.read_csv(rawdir + "savingFileIndex_start.csv", delim_whitespace=True, skiprows=0, engine="c",
+                df2 = pd.read_csv(rawdir + "savingFileIndex_start.csv", sep="\s+", skiprows=0, engine="c",
                                   header=None, encoding="cp949", on_bad_lines='skip')
                 df2 = df2.loc[:,3].tolist()
                 index2 = []
