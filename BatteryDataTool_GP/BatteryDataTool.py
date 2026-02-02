@@ -422,49 +422,47 @@ def calculate_dvdq_gp(capacity, voltage):
     Fits a GP model to V vs Q and analytically differentiates it.
     """
     # Reshape for sklearn
-    X = capacity.values.reshape(-1, 1)
-    y = voltage.values
+    X_full = capacity.values.reshape(-1, 1)
+    y_full = voltage.values
     
+    # Downsample for training if data is too large (GP scales O(N^3))
+    n_samples = len(X_full)
+    if n_samples > 1000:
+        indices = np.linspace(0, n_samples - 1, 1000).astype(int)
+        X_train = X_full[indices]
+        y_train = y_full[indices]
+    else:
+        X_train = X_full
+        y_train = y_full
+
     # Kernel definition: RBF (smooth) + WhiteKernel (noise)
     # Length scale bounds can be adjusted based on data characteristics
-    kernel = RBF(length_scale=10.0, length_scale_bounds=(1e-1, 1e3)) + WhiteKernel(noise_level=1, noise_level_bounds=(1e-5, 1e1))
+    kernel = RBF(length_scale=10.0, length_scale_bounds=(1e-1, 1e4)) + WhiteKernel(noise_level=1e-2, noise_level_bounds=(1e-5, 1e1))
     
-    gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=9, normalize_y=True)
-    gp.fit(X, y)
+    # Reduce n_restarts_optimizer to 0 to speed up
+    gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=0, normalize_y=True)
+    gp.fit(X_train, y_train)
 
     # Gradient of the mean prediction
-    # sklearn doesn't provide direct derivative of the mean function easily for RBF.
-    # However, for a GP with mean 0 (after normalization): f(x) = K(x, X) * (K(X, X) + sigma^2 I)^-1 * y
-    # f'(x) = dK(x, X)/dx * alpha, where alpha = (K(X, X) + sigma^2 I)^-1 * y
+    # f(x) = K(x, X) * alpha, where alpha = (K(X, X) + sigma^2 I)^-1 * y
+    # f'(x) = dK(x, X)/dx * alpha
     
-    X_test = X # Evaluate at the same points
-    
-    # Get alpha_ (weights) from the fitted model
-    # Note: gp.alpha_ is available after fitting if optimizer is used (which is default)
-    
-    # We need to manually compute the gradient of the RBF kernel.
-    # k(x, x') = exp(- ||x - x'||^2 / (2 * l^2))
-    # dk/dx = k(x, x') * (-(x - x') / l^2)
+    # We predict on the FULL set of points
+    X_test = X_full 
     
     # Extract learned length scale
-    # The kernel in gp.kernel_ is the sum, accessing the RBF part might need traversing
-    # Assuming RBF is the first component or retrieving parameters
-    
     rbf_kernel = gp.kernel_.k1 # RBF part
     length_scale = rbf_kernel.length_scale
     
     # K matrix between test points and training points
-    K_trans = rbf_kernel(X_test, X) # Shape (n_samples, n_samples)
+    K_trans = rbf_kernel(X_test, X_train) # Shape (n_test, n_train)
     
     # Compute derivative of kernel matrix w.r.t test points
     # dK_ij / dx_i = K_ij * (-(x_i - x_j) / l^2)
+    # Broadcast subtraction: X_test (N, 1) - X_train.T (1, M) -> (N, M)
+    diff = X_test - X_train.T
+    dK_dx = K_trans * (-diff / (length_scale**2))
     
-    dK_dx = np.zeros_like(K_trans)
-    
-    for i in range(len(X_test)):
-         diff = X_test[i] - X.flatten() # x_i - x_j vector
-         dK_dx[i, :] = K_trans[i, :] * (-diff / (length_scale**2))
-         
     dvdq = dK_dx @ gp.alpha_
     
     return dvdq, gp
