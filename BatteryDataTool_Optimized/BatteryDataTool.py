@@ -4514,7 +4514,7 @@ class Ui_sitool(object):
         self.horizontalLayout_142.addWidget(self.cycxlabel_60)
         self.dvdq_full_smoothing_no = QtWidgets.QLineEdit(parent=self.dvdq)
         self.dvdq_full_smoothing_no.setMinimumSize(QtCore.QSize(310, 33))
-        self.dvdq_full_smoothing_no.setMaximumSize(QtCore.QSize(310, 33))
+        self.dvdq_full_smoothing_no.setMaximumSize(QtCore.QSize(150, 33))
         font = QtGui.QFont()
         font.setFamily("맑은 고딕")
         font.setPointSize(9)
@@ -4524,6 +4524,15 @@ class Ui_sitool(object):
         self.dvdq_full_smoothing_no.setInputMethodHints(QtCore.Qt.InputMethodHint.ImhFormattedNumbersOnly)
         self.dvdq_full_smoothing_no.setObjectName("dvdq_full_smoothing_no")
         self.horizontalLayout_142.addWidget(self.dvdq_full_smoothing_no)
+        self.dvdq_smooth_option_box = QtWidgets.QComboBox(parent=self.dvdq)
+        self.dvdq_smooth_option_box.setMinimumSize(QtCore.QSize(150, 33))
+        self.dvdq_smooth_option_box.setMaximumSize(QtCore.QSize(150, 33))
+        self.dvdq_smooth_option_box.setFont(font)
+        self.dvdq_smooth_option_box.setObjectName("dvdq_smooth_option_box")
+        self.dvdq_smooth_option_box.addItem("1: Raw")
+        self.dvdq_smooth_option_box.addItem("2: Savgol")
+        self.dvdq_smooth_option_box.addItem("3: GPR")
+        self.horizontalLayout_142.addWidget(self.dvdq_smooth_option_box)
         self.verticalLayout_22.addLayout(self.horizontalLayout_142)
         self.line_11 = QtWidgets.QFrame(parent=self.dvdq)
         self.line_11.setMinimumSize(QtCore.QSize(656, 3))
@@ -12377,16 +12386,23 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         ax2 = plt.subplot(2, 1, 2)
         toolbar = NavigationToolbar(canvas, None)
         # Voltage Profile 그리기
-        ax1.plot(simul_full.full_cap, simul_full.an_volt, "-", color = "b")
+        # Voltage Profile 그리기
         ax1.plot(simul_full.full_cap, simul_full.ca_volt, "-", color = "r")
         ax1.plot(simul_full.full_cap, simul_full.full_volt, "--", color = "g")
         ax1.plot(simul_full.full_cap, simul_full.real_volt, "-", color = "k")
         ax1.set_ylim(0, 4.7)
         ax1.set_xticks(np.linspace(-5, 105, 23))
-        ax1.legend(["음극", "양극", "예측", "실측"])
+        ax1.legend(["양극", "예측", "실측"], loc='upper left')
         ax1.set_xlabel("SOC")
         ax1.set_ylabel("Voltage")
         ax1.grid(which="major", axis="both", alpha=0.5)
+
+        # Anode Voltage (Right Y-axis)
+        ax1_sub = ax1.twinx()
+        ax1_sub.plot(simul_full.full_cap, simul_full.an_volt, "-", color = "b", label="음극")
+        ax1_sub.set_ylabel("Anode Voltage", color="b")
+        ax1_sub.tick_params(axis='y', labelcolor="b")
+        ax1_sub.legend(loc='upper right')
         # dVdQ 그래프 그리기
         ax2.plot(simul_full.full_cap, simul_full.an_dvdq, "-", color = "b")
         ax2.plot(simul_full.full_cap, simul_full.ca_dvdq, "-", color = "r")
@@ -12497,11 +12513,18 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
             an_slip_max = an_slip_ini + (full_cell_max_cap * (0.05 / self.fittingdegree))
         # 목적함수 초기화 실행
         min_params = None
+        # Smoothing Option
+        try:
+            smooth_opt_str = self.dvdq_smooth_option_box.currentText().split(':')[0]
+            smooth_option = int(smooth_opt_str)
+        except:
+            smooth_option = 1
+
         for i in range(int(self.dvdq_test_no.text())):
             ca_mass, ca_slip, an_mass, an_slip = generate_params(ca_mass_min, ca_mass_max, ca_slip_min, ca_slip_max, an_mass_min, an_mass_max,
                                                                  an_slip_min, an_slip_max)
             simul_full = generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, ca_mass, ca_slip, an_mass, an_slip, full_cell_max_cap,
-                                                  dvdq_min_cap, full_period)
+                                                  dvdq_min_cap, full_period, smooth_option=smooth_option)
             # 지정 영역에서만 rms 산정
             simul_full = simul_full.loc[(simul_full["full_cap"] > int(
                 self.dvdq_start_soc.text())) & (simul_full["full_cap"] < int(self.dvdq_end_soc.text()))]
@@ -12519,7 +12542,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
             self.progressBar.setValue(int(int(i)/int(self.dvdq_test_no.text())*100))
         if min_params is not None:
             simul_full = generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, min_params[0], min_params[1],
-                                                    min_params[2], min_params[3], full_cell_max_cap, dvdq_min_cap, full_period)
+                                                    min_params[2], min_params[3], full_cell_max_cap, dvdq_min_cap, full_period, smooth_option=smooth_option)
             simul_full = simul_full.loc[(simul_full["full_cap"] > int(
                 self.dvdq_start_soc.text())) & (simul_full["full_cap"] < int(self.dvdq_end_soc.text()))]
             self.dvdq_graph(simul_full, min_params, self.min_rms)
@@ -12569,8 +12592,16 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
             ca_slip_ini = float(self.ca_slip_ini.text())
             an_mass_ini = float(self.an_mass_ini.text())
             an_slip_ini = float(self.an_slip_ini.text())
+            
+            # Smoothing Option
+            try:
+                smooth_opt_str = self.dvdq_smooth_option_box.currentText().split(':')[0]
+                smooth_option = int(smooth_opt_str)
+            except:
+                smooth_option = 1
+
             simul_full = generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, ca_mass_ini, ca_slip_ini,
-                                                  an_mass_ini, an_slip_ini, full_cell_max_cap, dvdq_min_cap, full_period)
+                                                  an_mass_ini, an_slip_ini, full_cell_max_cap, dvdq_min_cap, full_period, smooth_option=smooth_option)
             simul_full = simul_full.loc[(simul_full["full_cap"] > int(self.dvdq_start_soc.text())) &
                                         (simul_full["full_cap"] < int(self.dvdq_end_soc.text()))]
             simul_diff = np.subtract(simul_full.full_dvdq, simul_full.real_dvdq)
