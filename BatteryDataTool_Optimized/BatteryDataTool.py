@@ -430,8 +430,13 @@ def generate_params(ca_mass_min, ca_mass_max, ca_slip_min, ca_slip_max, an_mass_
 # 전체 결과 기반 dataframe 생성 함수
 def generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, ca_mass, ca_slip, an_mass, an_slip,
                              full_cell_max_cap, rated_cap, full_period, 
-                             enable_smoothing=True, smooth_method='savgol', 
-                             smooth_window=21, smooth_poly=3):
+                             smooth_option=1, smooth_window=21, smooth_poly=3):
+    """
+    smooth_option:
+    1 - Raw dV/dQ (No smoothing)
+    2 - Savitzky-Golay Smoothing
+    3 - Gaussian Process Regression
+    """
     # 용량 보정
     ca_ccv_raw.ca_cap_new = ca_ccv_raw.ca_cap * ca_mass - ca_slip
     an_ccv_raw.an_cap_new = an_ccv_raw.an_cap * an_mass - an_slip
@@ -450,61 +455,70 @@ def generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, ca_mass, ca_slip,
     # 백분율로 용량 변경
     simul_full.full_cap = simul_full.full_cap / rated_cap * 100
     
-    # 미분값 생성 (Calculate dV/dQ FIRST)
-    simul_full["an_dvdq"] = simul_full.an_volt.diff(periods = full_period) / simul_full.full_cap.diff(periods = full_period)
-    simul_full["ca_dvdq"] = simul_full.ca_volt.diff(periods = full_period) / simul_full.full_cap.diff(periods = full_period)
-    simul_full["real_dvdq"] = simul_full.real_volt.diff(periods = full_period) / simul_full.full_cap.diff(periods = full_period)
-    
-    # Smoothing Application (Post-Calculation)
-    if enable_smoothing:
+    # Option 1: Raw dV/dQ (No smoothing)
+    if smooth_option == 1:
+        simul_full["an_dvdq"] = simul_full.an_volt.diff(periods = full_period) / simul_full.full_cap.diff(periods = full_period)
+        simul_full["ca_dvdq"] = simul_full.ca_volt.diff(periods = full_period) / simul_full.full_cap.diff(periods = full_period)
+        simul_full["real_dvdq"] = simul_full.real_volt.diff(periods = full_period) / simul_full.full_cap.diff(periods = full_period)
+
+    # Option 2: Savitzky-Golay Smoothing
+    elif smooth_option == 2:
+        # 1. Calc Raw dV/dQ (Use period=1 for raw derivative, avoiding step-smoothing)
+        simul_full["an_dvdq"] = simul_full.an_volt.diff(periods = 1) / simul_full.full_cap.diff(periods = 1)
+        simul_full["ca_dvdq"] = simul_full.ca_volt.diff(periods = 1) / simul_full.full_cap.diff(periods = 1)
+        simul_full["real_dvdq"] = simul_full.real_volt.diff(periods = 1) / simul_full.full_cap.diff(periods = 1)
+        
+        # 2. Apply Savgol
         try:
             target_cols = ["an_dvdq", "ca_dvdq", "real_dvdq"]
-            
-            # Method 1: Savitzky-Golay
-            if smooth_method == 'savgol':
-                if smooth_window % 2 == 0: smooth_window += 1
-                for col in target_cols:
-                    if len(simul_full) > smooth_window:
-                        # Handle NaNs created by diff
-                        valid_idx = simul_full[col].notna()
-                        if valid_idx.sum() > smooth_window:
-                            smoothed = savgol_filter(simul_full.loc[valid_idx, col], smooth_window, smooth_poly)
-                            simul_full.loc[valid_idx, col] = smoothed
-
-            # Method 2: Gaussian Process Regression
-            elif smooth_method == 'gpr':
-                # Kernel: RBF + independent noise term
-                kernel = C(1.0, (1e-3, 1e3)) * RBF(length_scale=1.0, length_scale_bounds=(1e-2, 1e2)) + \
-                         WhiteKernel(noise_level=1e-3, noise_level_bounds=(1e-5, 1e-1))
-                gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=2, alpha=0.0)
-                
-                # Input X (Capacity)
-                X_full = simul_full["full_cap"].values.reshape(-1, 1)
-                
-                for col in target_cols:
+            if smooth_window % 2 == 0: smooth_window += 1
+            for col in target_cols:
+                if len(simul_full) > smooth_window:
                     valid_idx = simul_full[col].notna()
-                    if valid_idx.sum() > 50:
-                        y_raw = simul_full.loc[valid_idx, col].values
-                        X_valid = X_full[valid_idx]
-                        
-                        # Downsample for training if too large (GPR is O(N^3))
-                        # Limit training points to ~1000 for speed
-                        n_samples = len(X_valid)
-                        if n_samples > 1000:
-                            skip = n_samples // 1000 + 1
-                            X_train = X_valid[::skip]
-                            y_train = y_raw[::skip]
-                        else:
-                            X_train, y_train = X_valid, y_raw
-                            
-                        # Fit and Predict
-                        gp.fit(X_train, y_train)
-                        y_pred = gp.predict(X_valid) # Predict on all valid points
-                        
-                        simul_full.loc[valid_idx, col] = y_pred
-
+                    if valid_idx.sum() > smooth_window:
+                        smoothed = savgol_filter(simul_full.loc[valid_idx, col], smooth_window, smooth_poly)
+                        simul_full.loc[valid_idx, col] = smoothed
         except Exception as e:
-            print(f"Warning: Smoothing failed ({smooth_method}). {e}")
+            print(f"Warning: Savgol smoothing failed. {e}")
+
+    # Option 3: Gaussian Process Regression
+    elif smooth_option == 3:
+        # 1. Calc Raw dV/dQ (Use period=1 for raw derivative)
+        simul_full["an_dvdq"] = simul_full.an_volt.diff(periods = 1) / simul_full.full_cap.diff(periods = 1)
+        simul_full["ca_dvdq"] = simul_full.ca_volt.diff(periods = 1) / simul_full.full_cap.diff(periods = 1)
+        simul_full["real_dvdq"] = simul_full.real_volt.diff(periods = 1) / simul_full.full_cap.diff(periods = 1)
+        
+        # 2. Apply GPR
+        try:
+            target_cols = ["an_dvdq", "ca_dvdq", "real_dvdq"]
+            # Kernel: RBF + independent noise term
+            kernel = C(1.0, (1e-3, 1e3)) * RBF(length_scale=1.0, length_scale_bounds=(1e-2, 1e2)) + \
+                     WhiteKernel(noise_level=1e-3, noise_level_bounds=(1e-5, 1e-1))
+            gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=2, alpha=0.0)
+            
+            X_full = simul_full["full_cap"].values.reshape(-1, 1)
+            
+            for col in target_cols:
+                valid_idx = simul_full[col].notna()
+                if valid_idx.sum() > 50:
+                    y_raw = simul_full.loc[valid_idx, col].values
+                    X_valid = X_full[valid_idx]
+                    
+                    # Downsample for training (Performance optimization)
+                    n_samples = len(X_valid)
+                    if n_samples > 1000:
+                        skip = n_samples // 1000 + 1
+                        X_train = X_valid[::skip]
+                        y_train = y_raw[::skip]
+                    else:
+                        X_train, y_train = X_valid, y_raw
+                        
+                    gp.fit(X_train, y_train)
+                    y_pred = gp.predict(X_valid)
+                    
+                    simul_full.loc[valid_idx, col] = y_pred
+        except Exception as e:
+            print(f"Warning: GPR smoothing failed. {e}")
 
     simul_full["full_dvdq"] = simul_full["ca_dvdq"] - simul_full["an_dvdq"]
     return simul_full
