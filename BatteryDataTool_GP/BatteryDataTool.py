@@ -823,7 +823,7 @@ def toyo_chg_Profile_data(raw_file_path, inicycle, mincapacity, cutoff, inirate,
             df.Profile["Cap[mAh]"] = df.Profile["delcap"].cumsum()
             df.Profile["Chgwh"] = df.Profile["delwh"].cumsum()
             if smoothdegree == 0:
-                smoothdegree = len(df.Profile) / 30
+                smoothdegree = int(len(df.Profile) / 30)
             df.Profile["delvol"] = df.Profile["Voltage[V]"].diff(periods=smoothdegree)
             df.Profile["delcap"] = df.Profile["Cap[mAh]"].diff(periods=smoothdegree)
             df.Profile["dQdV"] = df.Profile["delcap"]/df.Profile["delvol"]
@@ -871,7 +871,7 @@ def toyo_dchg_Profile_data(raw_file_path, inicycle, mincapacity, cutoff, inirate
             df.Profile["Cap[mAh]"] = df.Profile["delcap"].cumsum()
             df.Profile["Dchgwh"] = df.Profile["delwh"].cumsum()
             if smoothdegree == 0:
-                smoothdegree = len(df.Profile) / 30
+                smoothdegree = int(len(df.Profile) / 30)
             df.Profile["delvol"] = df.Profile["Voltage[V]"].diff(periods=smoothdegree)
             df.Profile["delcap"] = df.Profile["Cap[mAh]"].diff(periods=smoothdegree)
             df.Profile["dQdV"] = df.Profile["delcap"]/df.Profile["delvol"]
@@ -1476,7 +1476,7 @@ def pne_chg_Profile_data(raw_file_path, inicycle, mincapacity, cutoff, inirate, 
             df.Profile["delvol"] = 0
             # 충전 용량 산정, dQdV 산정
             if smoothdegree == 0:
-                smoothdegree = len(df.Profile) / 30
+                smoothdegree = int(len(df.Profile) / 30)
             df.Profile["delvol"] = df.Profile["Voltage[V]"].diff(periods=smoothdegree)
             df.Profile["delcap"] = df.Profile["Chgcap"].diff(periods=smoothdegree)
             df.Profile["dQdV"] = df.Profile["delcap"]/df.Profile["delvol"]
@@ -1534,7 +1534,7 @@ def pne_dchg_Profile_data(raw_file_path, inicycle, mincapacity, cutoff, inirate,
             df.Profile["delvol"] = 0
             # 충전 용량 산정, dQdV 산정
             if smoothdegree == 0:
-                smoothdegree = len(df.Profile) / 30
+                smoothdegree = int(len(df.Profile) / 30)
             df.Profile["delvol"] = df.Profile["Voltage[V]"].diff(periods=smoothdegree)
             df.Profile["delcap"] = df.Profile["Dchgcap"].diff(periods=smoothdegree)
             df.Profile["dQdV"] = df.Profile["delcap"]/df.Profile["delvol"]
