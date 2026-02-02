@@ -1,6 +1,0 @@
-
-cyclename	cyclepath
-Gen4+ Si HHP 438V-300V	u:\PNE18\선행랩\류성택\240820 선행랩 류성택 Gen4p-20C-4905mAh-WD-HHP-Proto-DOE1-수명1500cy-438V-30V-23도\
-Gen4+ Si HHP 444V-300V	u:\PNE18\선행랩\류성택\240820 선행랩 류성택 Gen4p-20C-4905mAh-WD-HHP-Proto-DOE1-수명1500cy-444V-30V-23도\
-Gen4+ Si HHP 450V-300V	u:\PNE18\선행랩\류성택\240820 선행랩 류성택 Gen4p-20C-4905mAh-WD-HHP-Proto-DOE1-수명1500cy-45V-30V-23도\
-

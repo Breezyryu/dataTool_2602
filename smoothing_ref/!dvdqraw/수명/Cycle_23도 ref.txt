@@ -1,6 +1,0 @@
-
-온도	평가종류	셀종류	전압 range	cyclename	cyclepath
-23도	Cycle	Gen4	450V-320V	Gen4 450V-320V	u:\PNE19\선행Lab\류성택\240726 선행랩 류성택 Gen4 SDI-13C-450V-320V-4512mAh-Rss수명1500cy-23도\
-23도	Cycle	Gen4+ Gr	450V-300V	Gen4+ Gr 450V-300V	u:\PNE19\선행Lab\류성택\240726 선행랩 류성택 Gen4pGr ATL-450V-300V-422mAh-Rss수명1500cy-23도\
-23도	Cycle	Gen4+ Si	450V-300V	Gen4+ Si 450V-300V	u:\PNE19\선행Lab\류성택\240726 선행랩 류성택 Gen4pSi ATL-450V-300V-451mAh-Rss수명1500cy-23도\
-23도	Cycle	Gen4+ Si HHP	450V-300V	Gen4+ Si HHP 450V-300V	u:\PNE18\선행랩\류성택\240820 선행랩 류성택 Gen4p-20C-4905mAh-WD-HHP-Proto-DOE1-수명1500cy-45V-30V-23도\

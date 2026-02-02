@@ -1,6 +1,0 @@
-
-cyclename	cyclepath
-Gen4+ Si (mini)  	u:\PNE17\선행Lab\류성택\240722 선행랩 류성택 Gen4pSi ATL-450V-451mAh-HPPC-15도\
-Gen4+ Si (mini)  	u:\PNE17\선행Lab\류성택\240726 선행랩 류성택 Gen4pSi ATL-450V-451mAh-HPPC-15도\
-Gen4+ Si (mini)  	u:\PNE19\선행Lab\류성택\240726 선행랩 류성택 Gen4pSi ATL-450V-451mAh-HPPC-23도\
-Gen4+ Si (mini)  	u:\PNE20\선행랩\류성택\240726 선행랩 류성택 Gen4pSi ATL-450V-451mAh-HPPC-45도\

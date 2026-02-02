@@ -1,5 +1,0 @@
-
-cyclename	cyclepath
-Gen4+ Si 450V-280V	u:\PNE19\선행Lab\류성택\240726 선행랩 류성택 Gen4pSi ATL-450V-280V-451mAh-Rss수명1500cy-23도\
-Gen4+ Si 450V-300V	u:\PNE19\선행Lab\류성택\240726 선행랩 류성택 Gen4pSi ATL-450V-300V-451mAh-Rss수명1500cy-23도\
-Gen4+ Si 450V-320V	u:\PNE19\선행Lab\류성택\240726 선행랩 류성택 Gen4pSi ATL-450V-320V-451mAh-Rss수명1500cy-23도\

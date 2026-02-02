@@ -1,5 +1,0 @@
-
-cyclename	cyclepath
-u:\PNE17\선행Lab\류성택\240726 선행랩 류성택 Gen4 SDI-450V-4512mAh-HPPC-15도\
-u:\PNE19\선행Lab\류성택\240726 선행랩 류성택 Gen4 SDI-13C-450V-4512mAh-HPPC-23도\
-u:\PNE20\선행랩\류성택\240726 선행랩 류성택 Gen4 SDI-450V-13C-4512mAh-HPPC-45도\

@@ -1,4 +1,0 @@
-
-cyclename	cyclepath
-Gen4 Gr  (mini) 450V-300V	u:\PNE20\선행랩\류성택\240726 선행랩 류성택 Gen4pGr ATL-450V-422mAh-Rss일반수명-45도\
-Gen4+ Si (mini) 450V-300V	u:\PNE20\선행랩\류성택\240726 선행랩 류성택 Gen4pSi ATL-450V-451mAh-Rss일반수명-45도\
