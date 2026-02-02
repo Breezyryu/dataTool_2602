@@ -1546,9 +1546,9 @@ def pne_Profile_continue_data(raw_file_path, inicycle, endcycle, mincapacity, in
                 # cycle 데이터를 기준으로 OCV, CCV 데이터 확인
                 pnecyc.Cycrawtemp = pnecyc.Cycrawtemp.loc[(pnecyc.Cycrawtemp[27] >= inicycle) & (pnecyc.Cycrawtemp[27] <= endcycle)]
                 CycfileCap =  pnecyc.Cycrawtemp.loc[((pnecyc.Cycrawtemp[2] == 1) | (pnecyc.Cycrawtemp[2] == 2)), [0, 8, 10, 11]]
-                CycfileCap.loc[:,"AccCap"] = (CycfileCap.loc[:,10].cumsum() - CycfileCap[11].cumsum())
+                CycfileCap["AccCap"] = (CycfileCap[10].cumsum() - CycfileCap[11].cumsum())
                 CycfileCap = CycfileCap.reset_index()
-                CycfileCap.loc[:,"AccCap"] = (CycfileCap.loc[:,"AccCap"] - CycfileCap.loc[0,"AccCap"])/1000
+                CycfileCap["AccCap"] = (CycfileCap["AccCap"] - CycfileCap.loc[0,"AccCap"])/1000
                 CycfileOCV =  pnecyc.Cycrawtemp.loc[(pnecyc.Cycrawtemp[2] == 3), [0, 8]]
                 CycfileCCV =  pnecyc.Cycrawtemp.loc[((pnecyc.Cycrawtemp[2] == 1) | (pnecyc.Cycrawtemp[2] == 2)), [0, 8]]
                 Cycfileraw = pd.merge(CycfileOCV, CycfileCCV, on = 0, how='outer')
