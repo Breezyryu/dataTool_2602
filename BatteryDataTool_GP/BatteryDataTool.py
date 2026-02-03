@@ -473,9 +473,9 @@ def generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, ca_mass, ca_slip,
     # 용량 보정
     ca_ccv_raw.ca_cap_new = ca_ccv_raw.ca_cap * ca_mass - ca_slip
     an_ccv_raw.an_cap_new = an_ccv_raw.an_cap * an_mass - an_slip
-    # 기준 용량을 x 기준으로 변경
-    simul_full_cap = np.arange(0, full_cell_max_cap, 0.1)
-    simul_full_ca_volt = np.interp(simul_full_cap, ca_ccv_raw.ca_cap_new, ca_ccv_raw.ca_volt)
+    # 기준 용량을 x 기준으로 변경 (Cathode 기준)
+    simul_full_cap = np.array(ca_ccv_raw.ca_cap_new)
+    simul_full_ca_volt = np.array(ca_ccv_raw.ca_volt)
     simul_full_an_volt = np.interp(simul_full_cap, an_ccv_raw.an_cap_new, an_ccv_raw.an_volt)
     simul_full_real_volt = np.interp(simul_full_cap, real_raw.real_cap, real_raw.real_volt)
     # 예측되는 full 셀 전압 계산
