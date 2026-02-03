@@ -492,9 +492,9 @@ def generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, ca_mass, ca_slip,
         # 시간/성능 이슈가 있을 수 있으므로 필요한 부분만 계산하거나 최적화 필요
         try:
              # Calculate dV/dQ for each component
-            simul_full["an_dvdq"], _ = calculate_dvdq_gp(simul_full.full_cap, simul_full.an_volt)
-            simul_full["ca_dvdq"], _ = calculate_dvdq_gp(simul_full.full_cap, simul_full.ca_volt)
-            simul_full["real_dvdq"], _ = calculate_dvdq_gp(simul_full.full_cap, simul_full.real_volt)
+            simul_full["an_dvdq"] = np.gradient(simul_full.an_volt)/np.gradient(simul_full.full_cap)
+            simul_full["ca_dvdq"] = np.gradient(simul_full.ca_volt)/np.gradient(simul_full.full_cap)
+            simul_full["real_dvdq"] = np.gradient(simul_full.real_volt)/np.gradient(simul_full.full_cap)
         except Exception as e:
             print(f"GP Smoothing failed: {e}. Falling back to finite difference.")
             simul_full["an_dvdq"] = simul_full.an_volt.diff(periods = full_period) / simul_full.full_cap.diff(periods = full_period)
