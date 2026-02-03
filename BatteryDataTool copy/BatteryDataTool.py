@@ -1160,9 +1160,12 @@ def pne_cycle_data(raw_file_path, mincapacity, ini_crate, chkir, chkir2, mkdcir)
                                                      & (Cycleraw['Condition'] == 3)]
                             # dcri 계산 - dcirtemp2.imp - 1s pulse, dcirtemp1.imp - RSS
                             min_dcir_count = min(len(dcirtemp1), len(dcirtemp2), len(dcirtemp3))
-                            dcirtemp1 = dcirtemp1.iloc[:min_dcir_count]
-                            dcirtemp2 = dcirtemp2.iloc[:min_dcir_count]
-                            dcirtemp3 = dcirtemp3.iloc[:min_dcir_count]
+                            dcirtemp1 = dcirtemp1.iloc[:min_dcir_count].copy()
+                            dcirtemp2 = dcirtemp2.iloc[:min_dcir_count].copy()
+                            dcirtemp3 = dcirtemp3.iloc[:min_dcir_count].copy()
+                            # [수정] int64 컬럼에 float 할당 오류 방지 - dtype 변환
+                            dcirtemp1.iloc[:, 5] = dcirtemp1.iloc[:, 5].astype(float)
+                            dcirtemp2.iloc[:, 5] = dcirtemp2.iloc[:, 5].astype(float)
                             if (len(dcirtemp3) != 0) and (len(dcirtemp1) != 0) and (len(dcirtemp2) != 0):
                                 for i in range(0, min_dcir_count):
                                     current1 = dcirtemp1.iloc[i, 9]
