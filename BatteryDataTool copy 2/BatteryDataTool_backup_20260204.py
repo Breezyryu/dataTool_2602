@@ -753,7 +753,7 @@ def toyo_chg_Profile_data(raw_file_path, inicycle, mincapacity, cutoff, inirate,
             df.Profile["Cap[mAh]"] = df.Profile["delcap"].cumsum()
             df.Profile["Chgwh"] = df.Profile["delwh"].cumsum()
             if smoothdegree == 0:
-                smoothdegree = int(len(df.Profile) / 30) # 정수 처리
+                smoothdegree = len(df.Profile) / 30
             df.Profile["delvol"] = df.Profile["Voltage[V]"].diff(periods=smoothdegree)
             df.Profile["delcap"] = df.Profile["Cap[mAh]"].diff(periods=smoothdegree)
             df.Profile["dQdV"] = df.Profile["delcap"]/df.Profile["delvol"]
@@ -801,7 +801,7 @@ def toyo_dchg_Profile_data(raw_file_path, inicycle, mincapacity, cutoff, inirate
             df.Profile["Cap[mAh]"] = df.Profile["delcap"].cumsum()
             df.Profile["Dchgwh"] = df.Profile["delwh"].cumsum()
             if smoothdegree == 0:
-                smoothdegree = int(len(df.Profile) / 30) # 정수 처리
+                smoothdegree = len(df.Profile) / 30
             df.Profile["delvol"] = df.Profile["Voltage[V]"].diff(periods=smoothdegree)
             df.Profile["delcap"] = df.Profile["Cap[mAh]"].diff(periods=smoothdegree)
             df.Profile["dQdV"] = df.Profile["delcap"]/df.Profile["delvol"]
@@ -1406,7 +1406,7 @@ def pne_chg_Profile_data(raw_file_path, inicycle, mincapacity, cutoff, inirate, 
             df.Profile["delvol"] = 0
             # 충전 용량 산정, dQdV 산정
             if smoothdegree == 0:
-                smoothdegree = int(len(df.Profile) / 30) # 정수 처리
+                smoothdegree = len(df.Profile) / 30
             df.Profile["delvol"] = df.Profile["Voltage[V]"].diff(periods=smoothdegree)
             df.Profile["delcap"] = df.Profile["Chgcap"].diff(periods=smoothdegree)
             df.Profile["dQdV"] = df.Profile["delcap"]/df.Profile["delvol"]
@@ -1464,7 +1464,7 @@ def pne_dchg_Profile_data(raw_file_path, inicycle, mincapacity, cutoff, inirate,
             df.Profile["delvol"] = 0
             # 충전 용량 산정, dQdV 산정
             if smoothdegree == 0:
-                smoothdegree = int(len(df.Profile) / 30) # 정수 처리
+                smoothdegree = len(df.Profile) / 30
             df.Profile["delvol"] = df.Profile["Voltage[V]"].diff(periods=smoothdegree)
             df.Profile["delcap"] = df.Profile["Dchgcap"].diff(periods=smoothdegree)
             df.Profile["dQdV"] = df.Profile["delcap"]/df.Profile["delvol"]
@@ -8241,96 +8241,6 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         else:
             disconnect_change(self.mount_pne_5)
 
-    # ========================================
-    # [최적화] 공통 헬퍼 함수 (버튼_기능_최적화_비교분석.md 반영)
-    # ========================================
-    
-    def _init_confirm_button(self, button_widget):
-        """
-        공통 초기화 로직
-        - 버튼 비활성화/재활성화
-        - 설정 로드
-        - 경로 설정
-        """
-        button_widget.setDisabled(True)
-        
-        config = self.Profile_ini_set()
-        pne_path = self.pne_path_setting()
-        
-        button_widget.setEnabled(True)
-        
-        return {
-            'config': config,
-            'folders': pne_path[0],
-            'names': pne_path[1],
-            'firstCrate': config[0],
-            'mincapacity': config[1],
-            'CycleNo': config[2],
-            'smoothdegree': config[3],
-            'mincrate': config[4],
-            'dqscale': config[5],
-            'dvscale': config[6]
-        }
-    
-    def _setup_file_writer(self, file_extension=".xlsx"):
-        """
-        파일 저장 설정 공통 로직
-        """
-        save_file_name = None
-        writer = None
-        
-        if self.saveok.isChecked():
-            save_file_name = filedialog.asksaveasfilename(
-                initialdir="D://", 
-                title="Save File Name", 
-                defaultextension=file_extension
-            )
-            if save_file_name:
-                writer = pd.ExcelWriter(save_file_name, engine="xlsxwriter")
-        
-        if self.ect_saveok.isChecked():
-            save_file_name = filedialog.asksaveasfilename(
-                initialdir="D://", 
-                title="Save File Name"
-            )
-        
-        return writer, save_file_name
-    
-    def _create_plot_tab(self, fig, tab_no):
-        """
-        탭 생성 공통 로직
-        """
-        tab = QtWidgets.QWidget()
-        tab_layout = QtWidgets.QVBoxLayout(tab)
-        canvas = FigureCanvas(fig)
-        toolbar = NavigationToolbar(canvas, None)
-        
-        return tab, tab_layout, canvas, toolbar
-    
-    def _finalize_plot_tab(self, tab, tab_layout, canvas, toolbar, tab_no):
-        """
-        탭 최종화 공통 로직
-        """
-        tab_layout.addWidget(toolbar)
-        tab_layout.addWidget(canvas)
-        self.cycle_tab.addTab(tab, str(tab_no))
-        self.cycle_tab.setCurrentWidget(tab)
-        plt.tight_layout(pad=1, w_pad=1, h_pad=1)
-    
-    def _setup_legend(self, axes_list, data_name, positions):
-        """
-        범례 설정 공통 로직
-        """
-        if len(data_name) != 0:
-            for ax, pos in zip(axes_list, positions):
-                ax.legend(loc=pos)
-        else:
-            plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-    
-    # ========================================
-    # 기존 함수들
-    # ========================================
-
     def cyc_ini_set(self):
         # UI 기준 초기 설정 데이터
         firstCrate = float(self.ratetext.text())
@@ -9145,18 +9055,24 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         plt.close()
 
     def step_confirm_button(self):
-        # [리팩토링] 공통 초기화 함수 사용
-        init_data = self._init_confirm_button(self.StepConfirm)
-        firstCrate, mincapacity, CycleNo = init_data['firstCrate'], init_data['mincapacity'], init_data['CycleNo']
-        smoothdegree, mincrate, dqscale, dvscale = init_data['smoothdegree'], init_data['mincrate'], init_data['dqscale'], init_data['dvscale']
-        all_data_folder, all_data_name = init_data['folders'], init_data['names']
-        
+        self.StepConfirm.setDisabled(True)
+        firstCrate, mincapacity, CycleNo, smoothdegree, mincrate, dqscale, dvscale = self.Profile_ini_set()
         # 용량 선정 관련
         global writer
         write_column_num, folder_count, chnlcount, cyccount = 0, 0, 0, 0
-        
-        # [리팩토링] 공통 파일 저장 설정 함수 사용
-        writer, save_file_name = self._setup_file_writer()
+        root = Tk()
+        root.withdraw()
+        pne_path = self.pne_path_setting()
+        all_data_folder = pne_path[0]
+        all_data_name = pne_path[1]
+        self.StepConfirm.setEnabled(True)
+        if self.saveok.isChecked():
+            save_file_name = filedialog.asksaveasfilename(initialdir="D://", title="Save File Name", defaultextension=".xlsx")
+            if save_file_name:
+                writer = pd.ExcelWriter(save_file_name, engine="xlsxwriter")
+        if self.ect_saveok.isChecked():
+            # save_file_name = filedialog.asksaveasfilename(initialdir="D://", title="Save File Name", defaultextension=".csv")
+            save_file_name = filedialog.asksaveasfilename(initialdir="D://", title="Save File Name")
         tab_no = 0
         for i, cyclefolder in enumerate(all_data_folder):
             if os.path.isdir(cyclefolder):
@@ -9167,8 +9083,10 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                     for FolderBase in subfolder:
                         fig, ((step_ax1, step_ax2, step_ax3) ,(step_ax4, step_ax5, step_ax6)) = plt.subplots(
                             nrows=2, ncols=3, figsize=(14, 10))
-                        # [리팩토링] 공통 탭 생성 함수 사용
-                        tab, tab_layout, canvas, toolbar = self._create_plot_tab(fig, tab_no)
+                        tab = QtWidgets.QWidget()
+                        tab_layout = QtWidgets.QVBoxLayout(tab)
+                        canvas = FigureCanvas(fig)
+                        toolbar = NavigationToolbar(canvas, None)
                         chnlcount = chnlcount + 1
                         chnlcountmax = len(subfolder)
                         if "Pattern" not in FolderBase:
@@ -9228,19 +9146,29 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                                                                         "Temp."])
                             title = step_namelist[-2] + "=" + step_namelist[-1]
                             plt.suptitle(title, fontsize= 15, fontweight='bold')
-                            # [리팩토링] 공통 범례 설정 함수 사용
-                            axes_list = [step_ax1, step_ax2, step_ax4, step_ax3, step_ax5, step_ax6]
-                            positions = ["lower right", "lower right", "lower right", "lower right", "upper right", "upper right"]
-                            self._setup_legend(axes_list, all_data_name, positions)
-                            # [리팩토링] 공통 탭 최종화 함수 사용
-                            self._finalize_plot_tab(tab, tab_layout, canvas, toolbar, tab_no)
+                            if len(all_data_name) != 0:
+                                step_ax1.legend(loc="lower right")
+                                step_ax2.legend(loc="lower right")
+                                step_ax4.legend(loc="lower right")
+                                step_ax3.legend(loc="lower right")
+                                step_ax5.legend(loc="upper right")
+                                step_ax6.legend(loc="upper right")
+                            else:
+                                plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+                            tab_layout.addWidget(toolbar)
+                            tab_layout.addWidget(canvas)
+                            self.cycle_tab.addTab(tab, str(tab_no))
+                            self.cycle_tab.setCurrentWidget(tab)
                             tab_no = tab_no + 1
+                            plt.tight_layout(pad=1, w_pad=1, h_pad=1)
                 else:
                     for Step_CycNo in CycleNo:
                         fig, ((step_ax1, step_ax2, step_ax3) ,(step_ax4, step_ax5, step_ax6)) = plt.subplots(
                             nrows=2, ncols=3, figsize=(14, 10))
-                        # [리팩토링] 공통 탭 생성 함수 사용
-                        tab, tab_layout, canvas, toolbar = self._create_plot_tab(fig, tab_no)
+                        tab = QtWidgets.QWidget()
+                        tab_layout = QtWidgets.QVBoxLayout(tab)
+                        canvas = FigureCanvas(fig)
+                        toolbar = NavigationToolbar(canvas, None)
                         chnlcount = chnlcount + 1
                         chnlcountmax = len(subfolder)
                         for FolderBase in subfolder:
@@ -9286,13 +9214,21 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                                             write_column_num = write_column_num + 5
                                 title = step_namelist[-2] + "=" + "%04d" % Step_CycNo
                                 plt.suptitle(title, fontsize= 15, fontweight='bold')
-                                # [리팩토링] 공통 범례 설정 함수 사용
-                                axes_list = [step_ax1, step_ax2, step_ax4, step_ax3, step_ax5, step_ax6]
-                                positions = ["lower right", "lower right", "lower right", "lower right", "upper right", "upper right"]
-                                self._setup_legend(axes_list, all_data_name, positions)
-                        # [리팩토링] 공통 탭 최종화 함수 사용
-                        self._finalize_plot_tab(tab, tab_layout, canvas, toolbar, tab_no)
+                                if len(all_data_name) != 0:
+                                    step_ax1.legend(loc="lower right")
+                                    step_ax2.legend(loc="lower right")
+                                    step_ax4.legend(loc="lower right")
+                                    step_ax3.legend(loc="lower right")
+                                    step_ax5.legend(loc="upper right")
+                                    step_ax6.legend(loc="upper right")
+                                else:
+                                    plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+                        tab_layout.addWidget(toolbar)
+                        tab_layout.addWidget(canvas)
+                        self.cycle_tab.addTab(tab, str(tab_no))
+                        self.cycle_tab.setCurrentWidget(tab)
                         tab_no = tab_no + 1
+                        plt.tight_layout(pad=1, w_pad=1, h_pad=1)
         if self.saveok.isChecked() and save_file_name:
             writer.close()
         plt.tight_layout(pad=1, w_pad=1, h_pad=1)
@@ -9300,18 +9236,24 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         plt.close()
 
     def rate_confirm_button(self):
-        # [리팩토링] 공통 초기화 함수 사용
-        init_data = self._init_confirm_button(self.RateConfirm)
-        firstCrate, mincapacity, CycleNo = init_data['firstCrate'], init_data['mincapacity'], init_data['CycleNo']
-        smoothdegree, mincrate, dqscale, dvscale = init_data['smoothdegree'], init_data['mincrate'], init_data['dqscale'], init_data['dvscale']
-        all_data_folder, all_data_name = init_data['folders'], init_data['names']
-        
+        self.RateConfirm.setDisabled(True)
+        firstCrate, mincapacity, CycleNo, smoothdegree, mincrate, dqscale, dvscale = self.Profile_ini_set()
         # 용량 선정 관련
         global writer
         writecolno, foldercount, chnlcount, cyccount = 0, 0, 0, 0
-        
-        # [리팩토링] 공통 파일 저장 설정 함수 사용
-        writer, save_file_name = self._setup_file_writer()
+        root = Tk()
+        root.withdraw()
+        pne_path = self.pne_path_setting()
+        all_data_folder = pne_path[0]
+        all_data_name = pne_path[1]
+        self.RateConfirm.setEnabled(True)
+        if self.saveok.isChecked():
+            save_file_name = filedialog.asksaveasfilename(initialdir="D://", title="Save File Name", defaultextension=".xlsx")
+            if save_file_name:
+                writer = pd.ExcelWriter(save_file_name, engine="xlsxwriter")
+        if self.ect_saveok.isChecked():
+            # save_file_name = filedialog.asksaveasfilename(initialdir="D://", title="Save File Name", defaultextension=".csv")
+            save_file_name = filedialog.asksaveasfilename(initialdir="D://", title="Save File Name")
         tab_no = 0
         for i, cyclefolder in enumerate(all_data_folder):
             subfolder = [f.path for f in os.scandir(cyclefolder) if f.is_dir()]
@@ -9321,8 +9263,10 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                 for FolderBase in subfolder:
                     fig, ((rate_ax1, rate_ax2, rate_ax3) ,(rate_ax4, rate_ax5, rate_ax6)) = plt.subplots(
                         nrows=2, ncols=3, figsize=(14, 10))
-                    # [리팩토링] 공통 탭 생성 함수 사용
-                    tab, tab_layout, canvas, toolbar = self._create_plot_tab(fig, tab_no)
+                    tab = QtWidgets.QWidget()
+                    tab_layout = QtWidgets.QVBoxLayout(tab)
+                    canvas = FigureCanvas(fig)
+                    toolbar = NavigationToolbar(canvas, None)
                     chnlcount = chnlcount + 1
                     chnlcountmax = len(subfolder)
                     if "Pattern" not in FolderBase:
@@ -9387,20 +9331,30 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                                                                     "Temp."])
                             title = Ratenamelist[-2] + "=" + Ratenamelist[-1]
                             plt.suptitle(title, fontsize= 15, fontweight='bold')
-                            # [리팩토링] 공통 범례 설정 함수 사용
-                            axes_list = [rate_ax1, rate_ax2, rate_ax3, rate_ax4, rate_ax5, rate_ax6]
-                            positions = ["lower right", "upper right", "lower right", "lower right", "upper right", "upper right"]
-                            self._setup_legend(axes_list, all_data_name, positions)
-                        # [리팩토링] 공통 탭 최종화 함수 사용
-                        self._finalize_plot_tab(tab, tab_layout, canvas, toolbar, tab_no)
+                            if len(all_data_name) != 0:
+                                rate_ax1.legend(loc="lower right")
+                                rate_ax2.legend(loc="upper right")
+                                rate_ax3.legend(loc="lower right")
+                                rate_ax4.legend(loc="lower right")
+                                rate_ax5.legend(loc="upper right")
+                                rate_ax6.legend(loc="upper right")
+                            else:
+                                plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+                        tab_layout.addWidget(toolbar)
+                        tab_layout.addWidget(canvas)
+                        self.cycle_tab.addTab(tab, str(tab_no))
+                        self.cycle_tab.setCurrentWidget(tab)
                         tab_no = tab_no + 1
+                        plt.tight_layout(pad=1, w_pad=1, h_pad=1)
                         output_fig(self.figsaveok, title)
             else:
                 for CycNo in CycleNo:
                     fig, ((rate_ax1, rate_ax2, rate_ax3) ,(rate_ax4, rate_ax5, rate_ax6)) = plt.subplots(
                         nrows=2, ncols=3, figsize=(14, 10))
-                    # [리팩토링] 공통 탭 생성 함수 사용
-                    tab, tab_layout, canvas, toolbar = self._create_plot_tab(fig, tab_no)
+                    tab = QtWidgets.QWidget()
+                    tab_layout = QtWidgets.QVBoxLayout(tab)
+                    canvas = FigureCanvas(fig)
+                    toolbar = NavigationToolbar(canvas, None)
                     chnlcount = chnlcount + 1
                     chnlcountmax = len(subfolder)
                     for FolderBase in subfolder:
@@ -9474,18 +9428,23 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         plt.close()
 
     def chg_confirm_button(self):
-        # [리팩토링] 공통 초기화 함수 사용
-        init_data = self._init_confirm_button(self.ChgConfirm)
-        firstCrate, mincapacity, CycleNo = init_data['firstCrate'], init_data['mincapacity'], init_data['CycleNo']
-        smoothdegree, mincrate, dqscale, dvscale = init_data['smoothdegree'], init_data['mincrate'], init_data['dqscale'], init_data['dvscale']
-        all_data_folder, all_data_name = init_data['folders'], init_data['names']
-        
+        self.ChgConfirm.setDisabled(True)
+        firstCrate, mincapacity, CycleNo, smoothdegree, mincrate, dqscale, dvscale = self.Profile_ini_set()
         # 용량 선정 관련
         global writer
         foldercount, chnlcount, cyccount, writecolno = 0, 0, 0, 0
-        
-        # [리팩토링] 공통 파일 저장 설정 함수 사용
-        writer, save_file_name = self._setup_file_writer()
+        root = Tk()
+        root.withdraw()
+        pne_path = self.pne_path_setting()
+        all_data_folder = pne_path[0]
+        all_data_name = pne_path[1]
+        self.ChgConfirm.setEnabled(True)
+        if self.saveok.isChecked():
+            save_file_name = filedialog.asksaveasfilename(initialdir="D://", title="Save File Name", defaultextension=".xlsx")
+            if save_file_name:
+                writer = pd.ExcelWriter(save_file_name, engine="xlsxwriter")
+        if self.ect_saveok.isChecked():
+            save_file_name = filedialog.asksaveasfilename(initialdir="D://", title="Save File Name")
         tab_no = 0
         for i, cyclefolder in enumerate(all_data_folder):
             if os.path.isdir(cyclefolder):
@@ -9499,8 +9458,10 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                         if "Pattern" not in FolderBase:
                             fig, ((Chg_ax1, Chg_ax2, Chg_ax3) ,(Chg_ax4, Chg_ax5, Chg_ax6)) = plt.subplots(
                                 nrows=2, ncols=3, figsize=(14, 10))
-                            # [리팩토링] 공통 탭 생성 함수 사용
-                            tab, tab_layout, canvas, toolbar = self._create_plot_tab(fig, tab_no)
+                            tab = QtWidgets.QWidget()
+                            tab_layout = QtWidgets.QVBoxLayout(tab)
+                            canvas = FigureCanvas(fig)
+                            toolbar = NavigationToolbar(canvas, None)
                             for CycNo in CycleNo:
                                 cyccountmax = len(CycleNo)
                                 cyccount = cyccount + 1
@@ -9683,18 +9644,24 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         plt.close()
 
     def dchg_confirm_button(self):
-        # [리팩토링] 공통 초기화 함수 사용
-        init_data = self._init_confirm_button(self.DchgConfirm)
-        firstCrate, mincapacity, CycleNo = init_data['firstCrate'], init_data['mincapacity'], init_data['CycleNo']
-        smoothdegree, mincrate, dqscale, dvscale = init_data['smoothdegree'], init_data['mincrate'], init_data['dqscale'], init_data['dvscale']
-        all_data_folder, all_data_name = init_data['folders'], init_data['names']
-        
+        self.DchgConfirm.setDisabled(True)
+        firstCrate, mincapacity, CycleNo, smoothdegree, mincrate, dqscale, dvscale = self.Profile_ini_set()
         # 용량 선정 관련
         global writer
         foldercount, chnlcount, cyccount, writecolno = 0, 0, 0, 0
-        
-        # [리팩토링] 공통 파일 저장 설정 함수 사용
-        writer, save_file_name = self._setup_file_writer()
+        root = Tk()
+        root.withdraw()
+        pne_path = self.pne_path_setting()
+        all_data_folder = pne_path[0]
+        all_data_name = pne_path[1]
+        self.DchgConfirm.setEnabled(True)
+        if self.saveok.isChecked():
+            save_file_name = filedialog.asksaveasfilename(initialdir="D://", title="Save File Name", defaultextension=".xlsx")
+            if save_file_name:
+                writer = pd.ExcelWriter(save_file_name, engine="xlsxwriter")
+        if self.ect_saveok.isChecked():
+            # save_file_name = filedialog.asksaveasfilename(initialdir="D://", title="Save File Name", defaultextension=".csv")
+            save_file_name = filedialog.asksaveasfilename(initialdir="D://", title="Save File Name")
         tab_no = 0
         for i, cyclefolder in enumerate(all_data_folder):
             if os.path.isdir(cyclefolder):
@@ -9708,8 +9675,10 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                         if "Pattern" not in FolderBase:
                             fig, ((Chg_ax1, Chg_ax2, Chg_ax3) ,(Chg_ax4, Chg_ax5, Chg_ax6)) = plt.subplots(
                                 nrows=2, ncols=3, figsize=(14, 10))
-                            # [리팩토링] 공통 탭 생성 함수 사용
-                            tab, tab_layout, canvas, toolbar = self._create_plot_tab(fig, tab_no)
+                            tab = QtWidgets.QWidget()
+                            tab_layout = QtWidgets.QVBoxLayout(tab)
+                            canvas = FigureCanvas(fig)
+                            toolbar = NavigationToolbar(canvas, None)
                             for CycNo in CycleNo:
                                 cyccountmax = len(CycleNo)
                                 cyccount = cyccount + 1
@@ -9741,7 +9710,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                                         graph_profile(Dchgtemp[1].Profile.SOC, Dchgtemp[1].Profile.Crate, Chg_ax5,
                                                       0, 1.3, 0.1, 0, 3.4, 0.2, "SOC", "C-rate", temp_lgnd)
                                         graph_profile(Dchgtemp[1].Profile.SOC, Dchgtemp[1].Profile.dVdQ, Chg_ax4,
-                                                      0, 1.3, 0.1, -5 * dvscale, 0.5 * dvscale, 0.5 * dvscale,
+                                                      0, 1.3, 0.1, -5 * dvscale, 0.5 * self.dvscale, 0.5 * self.dvscale,
                                                       "DOD", "dVdQ", temp_lgnd)
                                         graph_profile(Dchgtemp[1].Profile.SOC, Dchgtemp[1].Profile.Temp, Chg_ax6,
                                                       0, 1.3, 0.1, -15, 60, 5, "DOD", "Temp.", lgnd) # Data output option
@@ -10001,22 +9970,25 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         plt.close()
 
     def pro_continue_confirm_button(self):
-        # [리팩토링] 공통 초기화 함수 사용 (일부)
         self.ContinueConfirm.setDisabled(True)
-        config = self.Profile_ini_set()
-        firstCrate, mincapacity, CycleNo = config[0], config[1], config[2]
-        smoothdegree, mincrate, dqscale, dvscale = config[3], config[4], config[5], config[6]
+        firstCrate, mincapacity, CycleNo, smoothdegree, mincrate, dqscale, dvscale = self.Profile_ini_set()
         all_data_name = []
         # 용량 선정 관련
         global writer
         if "-" in self.stepnum.toPlainText():
             write_column_num, write_column_num2, folder_count, chnlcount, cyccount = 0, 0, 0, 0, 0
+            root = Tk()
+            root.withdraw()
             pne_path = self.pne_path_setting()
             all_data_folder = pne_path[0]
             all_data_name = pne_path[1]
-            
-            # [리팩토링] 공통 파일 저장 설정 함수 사용
-            writer, save_file_name = self._setup_file_writer()
+            if self.saveok.isChecked():
+                save_file_name = filedialog.asksaveasfilename(initialdir="D://", title="Save File Name", defaultextension=".xlsx")
+                if save_file_name:
+                    writer = pd.ExcelWriter(save_file_name, engine="xlsxwriter")
+            if self.ect_saveok.isChecked():
+                # save_file_name = filedialog.asksaveasfilename(initialdir="D://", title="Save File Name", defaultextension=".csv")
+                save_file_name = filedialog.asksaveasfilename(initialdir="D://", title="Save File Name")
             self.ContinueConfirm.setEnabled(True)
             chg_dchg_dcir_no = list((self.stepnum.toPlainText().split(" ")))
             tab_no = 0
@@ -10034,8 +10006,10 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                                 CycleNo = range(Step_CycNo, Step_CycEnd + 1)
                                 if "Pattern" not in FolderBase:
                                     fig, ((step_ax1, step_ax2, step_ax3) ,(step_ax4, step_ax5, step_ax6)) = plt.subplots( nrows=2, ncols=3, figsize=(14, 10))
-                                    # [리팩토링] 공통 탭 생성 함수 사용
-                                    tab, tab_layout, canvas, toolbar = self._create_plot_tab(fig, tab_no)
+                                    tab = QtWidgets.QWidget()
+                                    tab_layout = QtWidgets.QVBoxLayout(tab)
+                                    canvas = FigureCanvas(fig)
+                                    toolbar = NavigationToolbar(canvas, None)
                                     cyccountmax = len(CycleNo)
                                     cyccount = cyccount + 1
                                     progressdata = progress(folder_count, foldercountmax, cyccount, cyccountmax, chnlcount, chnlcountmax)
@@ -10130,17 +10104,16 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                                             tab_layout.addWidget(canvas)
                                             self.cycle_tab.addTab(tab, str(tab_no))
                                             self.cycle_tab.setCurrentWidget(tab)
-                                            tab_no = tab_no + 1
+                                            # tab_no = tab_no + 1
                                             plt.tight_layout(pad=1, w_pad=1, h_pad=1)
                                             output_fig(self.figsaveok, title)
-                                        else:
-                                            tab_layout.addWidget(toolbar)
-                                            tab_layout.addWidget(canvas)
-                                            self.cycle_tab.addTab(tab, str(tab_no))
-                                            self.cycle_tab.setCurrentWidget(tab)
-                                            tab_no = tab_no + 1
-                                            plt.tight_layout(pad=1, w_pad=1, h_pad=1)
-                                            output_fig(self.figsaveok, title)
+                                        tab_layout.addWidget(toolbar)
+                                        tab_layout.addWidget(canvas)
+                                        self.cycle_tab.addTab(tab, str(tab_no))
+                                        self.cycle_tab.setCurrentWidget(tab)
+                                        tab_no = tab_no + 1
+                                        plt.tight_layout(pad=1, w_pad=1, h_pad=1)
+                                        output_fig(self.figsaveok, title)
             if self.saveok.isChecked() and save_file_name:
                 writer.close()
             self.progressBar.setValue(100)

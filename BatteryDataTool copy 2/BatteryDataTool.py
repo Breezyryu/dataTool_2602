@@ -10,8 +10,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit, root_scalar
 from scipy.stats import linregress
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF, WhiteKernel
 from datetime import datetime
 from tkinter import filedialog, Tk
 from PyQt6 import QtCore, QtGui, QtWidgets
@@ -416,66 +414,15 @@ def generate_params(ca_mass_min, ca_mass_max, ca_slip_min, ca_slip_max, an_mass_
     an_slip = np.random.uniform(an_slip_min, an_slip_max)
     return ca_mass, ca_slip, an_mass, an_slip
 
-def calculate_dvdq_gp(capacity, voltage):
-    """
-    Calculates dV/dQ using Gaussian Process Regression.
-    Fits a GP model to V vs Q and analytically differentiates it.
-    """
-    # Reshape for sklearn
-    X_full = capacity.values.reshape(-1, 1)
-    y_full = voltage.values
-    
-    # Downsample for training if data is too large (GP scales O(N^3))
-    n_samples = len(X_full)
-    if n_samples > 1000:
-        indices = np.linspace(0, n_samples - 1, 1000).astype(int)
-        X_train = X_full[indices]
-        y_train = y_full[indices]
-    else:
-        X_train = X_full
-        y_train = y_full
-
-    # Kernel definition: RBF (smooth) + WhiteKernel (noise)
-    # Length scale bounds can be adjusted based on data characteristics
-    kernel = RBF(length_scale=10.0, length_scale_bounds=(1e-1, 1e4)) + WhiteKernel(noise_level=1e-2, noise_level_bounds=(1e-5, 1e1))
-    
-    # Reduce n_restarts_optimizer to 0 to speed up
-    gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=0, normalize_y=True)
-    gp.fit(X_train, y_train)
-
-    # Gradient of the mean prediction
-    # f(x) = K(x, X) * alpha, where alpha = (K(X, X) + sigma^2 I)^-1 * y
-    # f'(x) = dK(x, X)/dx * alpha
-    
-    # We predict on the FULL set of points
-    X_test = X_full 
-    
-    # Extract learned length scale
-    rbf_kernel = gp.kernel_.k1 # RBF part
-    length_scale = rbf_kernel.length_scale
-    
-    # K matrix between test points and training points
-    K_trans = rbf_kernel(X_test, X_train) # Shape (n_test, n_train)
-    
-    # Compute derivative of kernel matrix w.r.t test points
-    # dK_ij / dx_i = K_ij * (-(x_i - x_j) / l^2)
-    # Broadcast subtraction: X_test (N, 1) - X_train.T (1, M) -> (N, M)
-    diff = X_test - X_train.T
-    dK_dx = K_trans * (-diff / (length_scale**2))
-    
-    dvdq = dK_dx @ gp.alpha_
-    
-    return dvdq, gp
-
 # 전체 결과 기반 dataframe 생성 함수
 def generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, ca_mass, ca_slip, an_mass, an_slip,
-                             full_cell_max_cap, rated_cap, full_period, use_gp=False):
+                             full_cell_max_cap, rated_cap, full_period):
     # 용량 보정
     ca_ccv_raw.ca_cap_new = ca_ccv_raw.ca_cap * ca_mass - ca_slip
     an_ccv_raw.an_cap_new = an_ccv_raw.an_cap * an_mass - an_slip
-    # 기준 용량을 x 기준으로 변경 (Cathode 기준)
-    simul_full_cap = np.array(ca_ccv_raw.ca_cap_new)
-    simul_full_ca_volt = np.array(ca_ccv_raw.ca_volt)
+    # 기준 용량을 x 기준으로 변경
+    simul_full_cap = np.arange(0, full_cell_max_cap, 0.1)
+    simul_full_ca_volt = np.interp(simul_full_cap, ca_ccv_raw.ca_cap_new, ca_ccv_raw.ca_volt)
     simul_full_an_volt = np.interp(simul_full_cap, an_ccv_raw.an_cap_new, an_ccv_raw.an_volt)
     simul_full_real_volt = np.interp(simul_full_cap, real_raw.real_cap, real_raw.real_volt)
     # 예측되는 full 셀 전압 계산
@@ -487,24 +434,9 @@ def generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, ca_mass, ca_slip,
     # 백분율로 용량 변경
     simul_full.full_cap = simul_full.full_cap / rated_cap * 100
     # 미분값 생성
-    if use_gp:
-        # GP Smoothing 적용
-        # 시간/성능 이슈가 있을 수 있으므로 필요한 부분만 계산하거나 최적화 필요
-        try:
-             # Calculate dV/dQ for each component
-            simul_full["an_dvdq"], _ = calculate_dvdq_gp(simul_full.full_cap, simul_full.an_volt)
-            simul_full["ca_dvdq"], _ = calculate_dvdq_gp(simul_full.full_cap, simul_full.ca_volt)
-            simul_full["real_dvdq"], _ = calculate_dvdq_gp(simul_full.full_cap, simul_full.real_volt)
-        except Exception as e:
-            print(f"GP Smoothing failed: {e}. Falling back to finite difference.")
-            simul_full["an_dvdq"] = simul_full.an_volt.diff(periods = full_period) / simul_full.full_cap.diff(periods = full_period)
-            simul_full["ca_dvdq"] = simul_full.ca_volt.diff(periods = full_period) / simul_full.full_cap.diff(periods = full_period)
-            simul_full["real_dvdq"] = simul_full.real_volt.diff(periods = full_period) / simul_full.full_cap.diff(periods = full_period)
-    else:
-        simul_full["an_dvdq"] = simul_full.an_volt.diff(periods = full_period) / simul_full.full_cap.diff(periods = full_period)
-        simul_full["ca_dvdq"] = simul_full.ca_volt.diff(periods = full_period) / simul_full.full_cap.diff(periods = full_period)
-        simul_full["real_dvdq"] = simul_full.real_volt.diff(periods = full_period) / simul_full.full_cap.diff(periods = full_period)
-
+    simul_full["an_dvdq"] = simul_full.an_volt.diff(periods = full_period) / simul_full.full_cap.diff(periods = full_period)
+    simul_full["ca_dvdq"] = simul_full.ca_volt.diff(periods = full_period) / simul_full.full_cap.diff(periods = full_period)
+    simul_full["real_dvdq"] = simul_full.real_volt.diff(periods = full_period) / simul_full.full_cap.diff(periods = full_period)
     simul_full["full_dvdq"] = simul_full["ca_dvdq"] - simul_full["an_dvdq"]
     return simul_full
 
@@ -821,7 +753,7 @@ def toyo_chg_Profile_data(raw_file_path, inicycle, mincapacity, cutoff, inirate,
             df.Profile["Cap[mAh]"] = df.Profile["delcap"].cumsum()
             df.Profile["Chgwh"] = df.Profile["delwh"].cumsum()
             if smoothdegree == 0:
-                smoothdegree = int(len(df.Profile) / 30)
+                smoothdegree = int(len(df.Profile) / 30) # 정수 처리
             df.Profile["delvol"] = df.Profile["Voltage[V]"].diff(periods=smoothdegree)
             df.Profile["delcap"] = df.Profile["Cap[mAh]"].diff(periods=smoothdegree)
             df.Profile["dQdV"] = df.Profile["delcap"]/df.Profile["delvol"]
@@ -869,7 +801,7 @@ def toyo_dchg_Profile_data(raw_file_path, inicycle, mincapacity, cutoff, inirate
             df.Profile["Cap[mAh]"] = df.Profile["delcap"].cumsum()
             df.Profile["Dchgwh"] = df.Profile["delwh"].cumsum()
             if smoothdegree == 0:
-                smoothdegree = int(len(df.Profile) / 30)
+                smoothdegree = int(len(df.Profile) / 30) # 정수 처리
             df.Profile["delvol"] = df.Profile["Voltage[V]"].diff(periods=smoothdegree)
             df.Profile["delcap"] = df.Profile["Cap[mAh]"].diff(periods=smoothdegree)
             df.Profile["dQdV"] = df.Profile["delcap"]/df.Profile["delvol"]
@@ -1474,7 +1406,7 @@ def pne_chg_Profile_data(raw_file_path, inicycle, mincapacity, cutoff, inirate, 
             df.Profile["delvol"] = 0
             # 충전 용량 산정, dQdV 산정
             if smoothdegree == 0:
-                smoothdegree = int(len(df.Profile) / 30)
+                smoothdegree = int(len(df.Profile) / 30) # 정수 처리
             df.Profile["delvol"] = df.Profile["Voltage[V]"].diff(periods=smoothdegree)
             df.Profile["delcap"] = df.Profile["Chgcap"].diff(periods=smoothdegree)
             df.Profile["dQdV"] = df.Profile["delcap"]/df.Profile["delvol"]
@@ -1532,7 +1464,7 @@ def pne_dchg_Profile_data(raw_file_path, inicycle, mincapacity, cutoff, inirate,
             df.Profile["delvol"] = 0
             # 충전 용량 산정, dQdV 산정
             if smoothdegree == 0:
-                smoothdegree = int(len(df.Profile) / 30)
+                smoothdegree = int(len(df.Profile) / 30) # 정수 처리
             df.Profile["delvol"] = df.Profile["Voltage[V]"].diff(periods=smoothdegree)
             df.Profile["delcap"] = df.Profile["Dchgcap"].diff(periods=smoothdegree)
             df.Profile["dQdV"] = df.Profile["delcap"]/df.Profile["delvol"]
@@ -4434,19 +4366,6 @@ class Ui_sitool(object):
         self.dvdq_full_smoothing_no.setObjectName("dvdq_full_smoothing_no")
         self.horizontalLayout_142.addWidget(self.dvdq_full_smoothing_no)
         self.verticalLayout_22.addLayout(self.horizontalLayout_142)
-        
-        # GP Smoothing Checkbox in a new layout
-        self.horizontalLayout_gp = QtWidgets.QHBoxLayout()
-        self.horizontalLayout_gp.setObjectName("horizontalLayout_gp")
-        self.dvdq_gp_chk = QtWidgets.QCheckBox(parent=self.dvdq)
-        font = QtGui.QFont()
-        font.setFamily("맑은 고딕")
-        font.setPointSize(9)
-        self.dvdq_gp_chk.setFont(font)
-        self.dvdq_gp_chk.setObjectName("dvdq_gp_chk")
-        self.dvdq_gp_chk.setText("GP Smoothing")
-        self.horizontalLayout_gp.addWidget(self.dvdq_gp_chk)
-        self.verticalLayout_22.addLayout(self.horizontalLayout_gp)
         self.line_11 = QtWidgets.QFrame(parent=self.dvdq)
         self.line_11.setMinimumSize(QtCore.QSize(656, 3))
         self.line_11.setMaximumSize(QtCore.QSize(656, 3))
@@ -8322,6 +8241,96 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         else:
             disconnect_change(self.mount_pne_5)
 
+    # ========================================
+    # [최적화] 공통 헬퍼 함수 (버튼_기능_최적화_비교분석.md 반영)
+    # ========================================
+    
+    def _init_confirm_button(self, button_widget):
+        """
+        공통 초기화 로직
+        - 버튼 비활성화/재활성화
+        - 설정 로드
+        - 경로 설정
+        """
+        button_widget.setDisabled(True)
+        
+        config = self.Profile_ini_set()
+        pne_path = self.pne_path_setting()
+        
+        button_widget.setEnabled(True)
+        
+        return {
+            'config': config,
+            'folders': pne_path[0],
+            'names': pne_path[1],
+            'firstCrate': config[0],
+            'mincapacity': config[1],
+            'CycleNo': config[2],
+            'smoothdegree': config[3],
+            'mincrate': config[4],
+            'dqscale': config[5],
+            'dvscale': config[6]
+        }
+    
+    def _setup_file_writer(self, file_extension=".xlsx"):
+        """
+        파일 저장 설정 공통 로직
+        """
+        save_file_name = None
+        writer = None
+        
+        if self.saveok.isChecked():
+            save_file_name = filedialog.asksaveasfilename(
+                initialdir="D://", 
+                title="Save File Name", 
+                defaultextension=file_extension
+            )
+            if save_file_name:
+                writer = pd.ExcelWriter(save_file_name, engine="xlsxwriter")
+        
+        if self.ect_saveok.isChecked():
+            save_file_name = filedialog.asksaveasfilename(
+                initialdir="D://", 
+                title="Save File Name"
+            )
+        
+        return writer, save_file_name
+    
+    def _create_plot_tab(self, fig, tab_no):
+        """
+        탭 생성 공통 로직
+        """
+        tab = QtWidgets.QWidget()
+        tab_layout = QtWidgets.QVBoxLayout(tab)
+        canvas = FigureCanvas(fig)
+        toolbar = NavigationToolbar(canvas, None)
+        
+        return tab, tab_layout, canvas, toolbar
+    
+    def _finalize_plot_tab(self, tab, tab_layout, canvas, toolbar, tab_no):
+        """
+        탭 최종화 공통 로직
+        """
+        tab_layout.addWidget(toolbar)
+        tab_layout.addWidget(canvas)
+        self.cycle_tab.addTab(tab, str(tab_no))
+        self.cycle_tab.setCurrentWidget(tab)
+        plt.tight_layout(pad=1, w_pad=1, h_pad=1)
+    
+    def _setup_legend(self, axes_list, data_name, positions):
+        """
+        범례 설정 공통 로직
+        """
+        if len(data_name) != 0:
+            for ax, pos in zip(axes_list, positions):
+                ax.legend(loc=pos)
+        else:
+            plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+    
+    # ========================================
+    # 기존 함수들
+    # ========================================
+
     def cyc_ini_set(self):
         # UI 기준 초기 설정 데이터
         firstCrate = float(self.ratetext.text())
@@ -9141,8 +9150,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         # 용량 선정 관련
         global writer
         write_column_num, folder_count, chnlcount, cyccount = 0, 0, 0, 0
-        root = Tk()
-        root.withdraw()
+        # [최적화] Tkinter root 생성 제거 - filedialog가 자체 생성함
         pne_path = self.pne_path_setting()
         all_data_folder = pne_path[0]
         all_data_name = pne_path[1]
@@ -9322,8 +9330,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         # 용량 선정 관련
         global writer
         writecolno, foldercount, chnlcount, cyccount = 0, 0, 0, 0
-        root = Tk()
-        root.withdraw()
+        # [최적화] Tkinter root 생성 제거 - filedialog가 자체 생성함
         pne_path = self.pne_path_setting()
         all_data_folder = pne_path[0]
         all_data_name = pne_path[1]
@@ -9514,8 +9521,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         # 용량 선정 관련
         global writer
         foldercount, chnlcount, cyccount, writecolno = 0, 0, 0, 0
-        root = Tk()
-        root.withdraw()
+        # [최적화] Tkinter root 생성 제거 - filedialog가 자체 생성함
         pne_path = self.pne_path_setting()
         all_data_folder = pne_path[0]
         all_data_name = pne_path[1]
@@ -9730,8 +9736,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         # 용량 선정 관련
         global writer
         foldercount, chnlcount, cyccount, writecolno = 0, 0, 0, 0
-        root = Tk()
-        root.withdraw()
+        # [최적화] Tkinter root 생성 제거 - filedialog가 자체 생성함
         pne_path = self.pne_path_setting()
         all_data_folder = pne_path[0]
         all_data_name = pne_path[1]
@@ -9791,7 +9796,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                                         graph_profile(Dchgtemp[1].Profile.SOC, Dchgtemp[1].Profile.Crate, Chg_ax5,
                                                       0, 1.3, 0.1, 0, 3.4, 0.2, "SOC", "C-rate", temp_lgnd)
                                         graph_profile(Dchgtemp[1].Profile.SOC, Dchgtemp[1].Profile.dVdQ, Chg_ax4,
-                                                      0, 1.3, 0.1, -5 * dvscale, 0.5 * self.dvscale, 0.5 * self.dvscale,
+                                                      0, 1.3, 0.1, -5 * dvscale, 0.5 * dvscale, 0.5 * dvscale,
                                                       "DOD", "dVdQ", temp_lgnd)
                                         graph_profile(Dchgtemp[1].Profile.SOC, Dchgtemp[1].Profile.Temp, Chg_ax6,
                                                       0, 1.3, 0.1, -15, 60, 5, "DOD", "Temp.", lgnd) # Data output option
@@ -10058,8 +10063,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         global writer
         if "-" in self.stepnum.toPlainText():
             write_column_num, write_column_num2, folder_count, chnlcount, cyccount = 0, 0, 0, 0, 0
-            root = Tk()
-            root.withdraw()
+            # [최적화] Tkinter root 생성 제거 - filedialog가 자체 생성함
             pne_path = self.pne_path_setting()
             all_data_folder = pne_path[0]
             all_data_name = pne_path[1]
@@ -10185,16 +10189,17 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                                             tab_layout.addWidget(canvas)
                                             self.cycle_tab.addTab(tab, str(tab_no))
                                             self.cycle_tab.setCurrentWidget(tab)
-                                            # tab_no = tab_no + 1
+                                            tab_no = tab_no + 1
                                             plt.tight_layout(pad=1, w_pad=1, h_pad=1)
                                             output_fig(self.figsaveok, title)
-                                        tab_layout.addWidget(toolbar)
-                                        tab_layout.addWidget(canvas)
-                                        self.cycle_tab.addTab(tab, str(tab_no))
-                                        self.cycle_tab.setCurrentWidget(tab)
-                                        tab_no = tab_no + 1
-                                        plt.tight_layout(pad=1, w_pad=1, h_pad=1)
-                                        output_fig(self.figsaveok, title)
+                                        else:
+                                            tab_layout.addWidget(toolbar)
+                                            tab_layout.addWidget(canvas)
+                                            self.cycle_tab.addTab(tab, str(tab_no))
+                                            self.cycle_tab.setCurrentWidget(tab)
+                                            tab_no = tab_no + 1
+                                            plt.tight_layout(pad=1, w_pad=1, h_pad=1)
+                                            output_fig(self.figsaveok, title)
             if self.saveok.isChecked() and save_file_name:
                 writer.close()
             self.progressBar.setValue(100)
@@ -12433,7 +12438,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
             ca_mass, ca_slip, an_mass, an_slip = generate_params(ca_mass_min, ca_mass_max, ca_slip_min, ca_slip_max, an_mass_min, an_mass_max,
                                                                  an_slip_min, an_slip_max)
             simul_full = generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, ca_mass, ca_slip, an_mass, an_slip, full_cell_max_cap,
-                                                  dvdq_min_cap, full_period, use_gp=self.dvdq_gp_chk.isChecked())
+                                                  dvdq_min_cap, full_period)
             # 지정 영역에서만 rms 산정
             simul_full = simul_full.loc[(simul_full["full_cap"] > int(
                 self.dvdq_start_soc.text())) & (simul_full["full_cap"] < int(self.dvdq_end_soc.text()))]
@@ -12451,7 +12456,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
             self.progressBar.setValue(int(int(i)/int(self.dvdq_test_no.text())*100))
         if min_params is not None:
             simul_full = generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, min_params[0], min_params[1],
-                                                    min_params[2], min_params[3], full_cell_max_cap, dvdq_min_cap, full_period, use_gp=self.dvdq_gp_chk.isChecked())
+                                                    min_params[2], min_params[3], full_cell_max_cap, dvdq_min_cap, full_period)
             simul_full = simul_full.loc[(simul_full["full_cap"] > int(
                 self.dvdq_start_soc.text())) & (simul_full["full_cap"] < int(self.dvdq_end_soc.text()))]
             self.dvdq_graph(simul_full, min_params, self.min_rms)
@@ -12502,7 +12507,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
             an_mass_ini = float(self.an_mass_ini.text())
             an_slip_ini = float(self.an_slip_ini.text())
             simul_full = generate_simulation_full(ca_ccv_raw, an_ccv_raw, real_raw, ca_mass_ini, ca_slip_ini,
-                                                  an_mass_ini, an_slip_ini, full_cell_max_cap, dvdq_min_cap, full_period, use_gp=self.dvdq_gp_chk.isChecked())
+                                                  an_mass_ini, an_slip_ini, full_cell_max_cap, dvdq_min_cap, full_period)
             simul_full = simul_full.loc[(simul_full["full_cap"] > int(self.dvdq_start_soc.text())) &
                                         (simul_full["full_cap"] < int(self.dvdq_end_soc.text()))]
             simul_diff = np.subtract(simul_full.full_dvdq, simul_full.real_dvdq)
