@@ -8614,6 +8614,14 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         for i, cyclefolder in enumerate(all_data_folder):
             fig, ((ax1, ax2, ax3), (ax4, ax5, ax6)) = plt.subplots(nrows=2, ncols=3, figsize=(14, 8))
             
+            # [수정] 루프 외부에서 변수 초기화
+            tab = None
+            tab_layout = None
+            canvas = None
+            toolbar = None
+            cycnamelist = None
+            has_valid_data = False
+            
             if os.path.exists(cyclefolder):
                 subfolder = [f.path for f in os.scandir(cyclefolder) if f.is_dir()]
                 
@@ -8626,11 +8634,18 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                     if cyctemp is None:
                         continue
                     
-                    # tab 그래프 추가
-                    tab = QtWidgets.QWidget()
-                    tab_layout = QtWidgets.QVBoxLayout(tab)
-                    canvas = FigureCanvas(fig)
-                    toolbar = NavigationToolbar(canvas, None)
+                    # [수정] cyctemp[1]이 None인 경우 스킵
+                    if cyctemp[1] is None:
+                        continue
+                    
+                    # tab 그래프 추가 (첫 번째 유효 데이터에서만 생성)
+                    if tab is None:
+                        tab = QtWidgets.QWidget()
+                        tab_layout = QtWidgets.QVBoxLayout(tab)
+                        canvas = FigureCanvas(fig)
+                        toolbar = NavigationToolbar(canvas, None)
+                    
+                    has_valid_data = True
                     
                     # 진행률 업데이트 (50% ~ 100%)
                     progress_val = 50 + int((i + 1) / total_folders * 50)
@@ -8694,14 +8709,19 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                     ax5.legend(loc="upper right")
                     ax6.legend(loc="lower right")
                 
-                tab_layout.addWidget(toolbar)
-                tab_layout.addWidget(canvas)
-                self.cycle_tab.addTab(tab, str(tab_no))
-                self.cycle_tab.setCurrentWidget(tab)
-                tab_no = tab_no + 1
-                plt.tight_layout(pad=1, w_pad=1, h_pad=1)
-                output_fig(self.figsaveok, cycnamelist[-2])
-                colorno = 0
+                # [수정] 유효한 데이터가 있는 경우에만 탭 추가
+                if has_valid_data and tab_layout is not None:
+                    tab_layout.addWidget(toolbar)
+                    tab_layout.addWidget(canvas)
+                    self.cycle_tab.addTab(tab, str(tab_no))
+                    self.cycle_tab.setCurrentWidget(tab)
+                    tab_no = tab_no + 1
+                    plt.tight_layout(pad=1, w_pad=1, h_pad=1)
+                    if cycnamelist:
+                        output_fig(self.figsaveok, cycnamelist[-2])
+                    colorno = 0
+                else:
+                    plt.close(fig)  # 사용하지 않는 figure 닫기
         
         if self.saveok.isChecked() and save_file_name:
             writer.close()
