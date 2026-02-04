@@ -8336,10 +8336,11 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         else:
             plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     
+    # 박민희 프로님
     def _load_cycle_data_task(self, task_info):
         """
         단일 폴더의 사이클 데이터를 로딩하는 작업 (ThreadPoolExecutor용)
-        """ 뇨
+        """
         folder_path, mincapacity, firstCrate, dcirchk, dcirchk_2, mkdcir, is_pne, folder_idx, subfolder_idx = task_info
         try:
             if is_pne:
