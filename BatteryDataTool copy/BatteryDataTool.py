@@ -905,7 +905,7 @@ def pne_search_cycle(rawdir, start, end):
                 if not index_max:
                     index_max = df.loc[(df.loc[:,27] == df.loc[:,27].max()), 0].tolist()
                 df2 = pd.read_csv(rawdir + "savingFileIndex_start.csv", sep=r"\s+", skiprows=0, engine="c",
-                                  header=None, encoding="cp949", on_bad_lines='skip')
+                                  header=None, encoding="cp949", on_bad_lines='skip') #pandas>=3.0.0 / 기존 2.2.1
                 df2 = df2.loc[:,3].tolist()
                 index2 = []
                 for element in df2:
@@ -8339,7 +8339,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
     # 박민희 프로님
     def _load_cycle_data_task(self, task_info):
         """
-        단일 폴더의 사이클 데이터를 로딩하는 작업 (ThreadPoolExecutor용)
+        단일 폴더의 사이클 데이터 로딩(ThreadPoolExecutor용)
         """
         folder_path, mincapacity, firstCrate, dcirchk, dcirchk_2, mkdcir, is_pne, folder_idx, subfolder_idx = task_info
         try:
@@ -8385,10 +8385,6 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         
         return results
     
-    # ========================================
-    # 기존 함수들
-    # ========================================
-
     def cyc_ini_set(self):
         # UI 기준 초기 설정 데이터
         firstCrate = float(self.ratetext.text())
@@ -10404,7 +10400,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                                             tab_layout.addWidget(canvas)
                                             self.cycle_tab.addTab(tab, str(tab_no))
                                             self.cycle_tab.setCurrentWidget(tab)
-                                            tab_no = tab_no + 1
+                                            # tab_no = tab_no + 1
                                             plt.tight_layout(pad=1, w_pad=1, h_pad=1)
                                             output_fig(self.figsaveok, title)
             if self.saveok.isChecked() and save_file_name:
@@ -11790,11 +11786,11 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
             Profile = pd.read_csv(datafilepath, sep=",", skiprows = 1, on_bad_lines='skip')
         Profile.columns = Profile.columns.str.replace('[^A-Za-z0-9_]+', '', regex=True)
         Profile = Profile[['Time', 'voltage_nowmV', 'CtypeEtcChargCur', 'CurrentAvg', 'TemperatureBA', 'Level', 'ectSOC',
-                           'RSOC', 'SOC_RE', 'Charging', 'Battery_Cycle', 'AnodePotential', 'SC_SCORE', 'VavgmV', 'LUT_VOLT0',
-                           'LUT_VOLT1', 'LUT_VOLT2', 'LUT_VOLT3']]
+                           'RSOC', 'SOC_RE', 'Charging', 'Battery_Cycle', 'AnodePotential', 'SC_VALUE','SC_SCORE', 'SC_Grade', 'SC_V_Acc',
+                            'SC_V_Avg', 'avg_I_ISC', 'avg_R_ISC', 'avg_R_ISC_min', 'VavgmV', 'LUT_VOLT0', 'LUT_VOLT1', 'LUT_VOLT2', 'LUT_VOLT3']]
         Profile.columns = ['Time', 'Vol', 'Curr', 'CurrAvg', 'Temp', 'SOC', 'SOCectraw',
-                        'RSOCect', 'SOCect', 'Type', 'Cyc', 'anodeE', 'short', 'Vavg', '1stepV', '2stepV',
-                        '3stepV', '4stepV']
+                        'RSOCect', 'SOCect', 'Type', 'Cyc', 'anodeE', 'short_value', 'short_score', 'short_grade', 'short_v_acc',
+                        'short_v_avg', 'avg_i_isc', 'avg_r_isc', 'avg_r_isc_min', 'Vavg', '1stepV', '2stepV', '3stepV', '4stepV']
         Profile.Time = '20'+ Profile['Time'].astype(str)
         Profile = Profile[:-1]
         cycmin = int(Profile.Cyc.min())
@@ -11869,9 +11865,9 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                 graph_set_profile(Profile.Time, Profile.short_value, ax[0][1], 0, 12, 2, "Time(hr)", "Short Value", "short value(1, 2, 4)", 0, 0, 0, 0)
                 graph_set_profile(Profile.Time, Profile.short_v_acc, ax[1][1], 0, 0, 0, "Time(hr)", "Short V acc.", "", 0, 0, 0, 0)
                 graph_set_profile(Profile.Time, Profile.short_v_avg, ax[2][1], 0, 0, 0, "Time(hr)", "Short V avg.", "", 0, 0, 0, 0)
-                graph_set_profile(Profile.Time, Profile.short_score, ax[3][1], 0, 6, 1, "Time(hr)", "Short Score.", "short check(>=3)", 0, 0, 0, 0)
-                graph_set_profile(Profile.Time, Profile.avg_i_isc, ax[4][1], 0, 120, 20, "Time(hr)", "Short I(mA).", "short current", 0, 0, 0, 0)
-                graph_set_profile(Profile.Time, Profile.short_grade, ax[5][1], 0, 6, 1, "Time(hr)", "Short Grade.", "Short Grade", 0, 0, 0, 0)
+                graph_set_profile(Profile.Time, Profile.short_score, ax[3][1], 0, 6, 1, "Time(hr)", "Short Score", "short check(>= 3)", 0, 0, 0, 0)
+                graph_set_profile(Profile.Time, Profile.avg_i_isc, ax[4][1], 0, 120, 20, "Time(hr)", "Short I(mA)", "short current", 0, 0, 0, 0)
+                graph_set_profile(Profile.Time, Profile.short_grade, ax[5][1], 0, 6, 1, "Time(hr)", "Short Grade", "Short Grade", 0, 0, 0, 0)
                 graph_set_profile(Profile.Time, Profile.avg_r_isc, ax[6][1], 0, 1200, 200, "Time(hr)", "Short R(Ω)", "short resistance", 0, 0, 0, 0)
                 graph_set_profile(Profile.Time, Profile.avg_r_isc_min, ax[6][1], 0, 1200, 200, "Time(hr)", "Short R(Ω)", "min short resistance", 0, 0, 0, 0)       
             # Short 관련
@@ -11884,16 +11880,16 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                         # X축 틱 레이블 제거
                         ax[i][j].set_xticklabels([])
                 Chgnamelist = datafilepath.split("/")
-                #ax[0, 0].legend(loc="lower left")
-                #ax[1, 0].legend(loc="lower left")
-                #ax[2, 0].legend(loc="lower left")
-                #ax[3, 0].legend(loc="lower left")
-                #ax[4, 0].legend(loc="lower left")
+                # ax[0, 0].legend(loc="lower left")
+                # ax[1, 0].legend(loc="lower left")
+                # ax[2, 0].legend(loc="lower left")
+                # ax[3, 0].legend(loc="lower left")
+                # ax[4, 0].legend(loc="lower left")
                 ax[5, 0].legend(loc="lower left")
                 ax[6, 0].legend(loc="lower left")
                 ax[0, 1].legend(loc="lower left")
-                #ax[1, 1].legend(loc="lower left")
-                #ax[2, 1].legend(loc="lower left")
+                # ax[1, 1].legend(loc="lower left")
+                # ax[2, 1].legend(loc="lower left")
                 ax[3, 1].legend(loc="lower left")
                 ax[4, 1].legend(loc="lower left")
                 ax[5, 1].legend(loc="lower left")
@@ -11906,7 +11902,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
             if self.saveok.isChecked() and save_file_name:
                 Profile.to_excel(writer)
                 writer.close()
-                #fig.legend()
+                # fig.legend()
             plt.subplots_adjust(right=0.8)
             # plt.suptitle(Chgnamelist[-1], fontsize= 15, fontweight='bold')
             plt.tight_layout(pad=1, w_pad=1, h_pad=1)
