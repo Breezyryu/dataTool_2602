@@ -182,7 +182,7 @@ def same_add(df, column_name):
 # 그래프 base 기본 설정 함수 (x라벨, y라벨, 그리드 양식)
 def graph_base_parameter(graph_ax, xlabel, ylabel): 
     graph_ax.set_xlabel(xlabel, fontsize= 12, fontweight='bold')
-    graph_ax.set_ylabel(ylabel, fontsize= 12, fontweight='bold')
+    graph_ax.set_ylabel(ylabel, fontsize= 10, fontweight='bold')
     graph_ax.tick_params(direction='in')
     graph_ax.grid(True, which='both', linestyle='--', linewidth=1.0)
 
@@ -872,7 +872,9 @@ def pne_data(raw_file_path, inicycle):
         # Profile에 사용할 파일 선정
         filepos = pne_search_cycle(rawdir, inicycle, inicycle + 1)
         # for files in subfile:
-        if os.path.isdir(rawdir) and (filepos[0] != -1):
+        if os.path.isdir(rawdir):
+            if (filepos[0] != -1):
+                filepos[0] = 0
             subfile = [f for f in os.listdir(rawdir) if f.endswith(".csv")]
             for files in subfile[(filepos[0]):(filepos[1] + 1)]:
                 # SaveData가 있는 파일을 순서대로 확인하면 Profile 작성
@@ -2027,7 +2029,7 @@ class Ui_sitool(object):
         sitool.setObjectName("sitool")
         sitool.resize(1913, 1005)
         font = QtGui.QFont()
-        font.setFamily("malgun gothic")
+        font.setFamily("Pretendard")
         font.setPointSize(10)
         sitool.setFont(font)
         self.layoutWidget = QtWidgets.QWidget(parent=sitool)
@@ -3639,25 +3641,25 @@ class Ui_sitool(object):
         self.ptn_list.setRowCount(0)
         item = QtWidgets.QTableWidgetItem()
         font = QtGui.QFont()
-        font.setFamily("malgun gothic")
+        font.setFamily("Pretendard")
         font.setPointSize(8)
         item.setFont(font)
         self.ptn_list.setHorizontalHeaderItem(0, item)
         item = QtWidgets.QTableWidgetItem()
         font = QtGui.QFont()
-        font.setFamily("malgun gothic")
+        font.setFamily("Pretendard")
         font.setPointSize(8)
         item.setFont(font)
         self.ptn_list.setHorizontalHeaderItem(1, item)
         item = QtWidgets.QTableWidgetItem()
         font = QtGui.QFont()
-        font.setFamily("malgun gothic")
+        font.setFamily("Pretendard")
         font.setPointSize(8)
         item.setFont(font)
         self.ptn_list.setHorizontalHeaderItem(2, item)
         item = QtWidgets.QTableWidgetItem()
         font = QtGui.QFont()
-        font.setFamily("malgun gothic")
+        font.setFamily("Pretendard")
         font.setPointSize(8)
         item.setFont(font)
         self.ptn_list.setHorizontalHeaderItem(3, item)
@@ -7649,7 +7651,7 @@ class Ui_sitool(object):
 
     def retranslateUi(self, sitool):
         _translate = QtCore.QCoreApplication.translate
-        sitool.setWindowTitle(_translate("sitool", "BatteryDataTool v251103"))
+        sitool.setWindowTitle(_translate("sitool", "BatteryDataTool v260203"))
         self.tb_room.setItemText(0, _translate("sitool", "R5 15F"))
         self.tb_room.setItemText(1, _translate("sitool", "R5 3F B-1"))
         self.tb_room.setItemText(2, _translate("sitool", "R5 3F B-2"))
@@ -8056,7 +8058,7 @@ class Ui_sitool(object):
         self.mount_pne_2.setText(_translate("sitool", "X: 15F B PNE3~5"))
         self.mount_pne_3.setText(_translate("sitool", "W: 3F B PNE1~8"))
         self.mount_pne_4.setText(_translate("sitool", "V: 3F B PNE9~16"))
-        self.mount_pne_5.setText(_translate("sitool", "U: 3F A PNE17~21"))
+        self.mount_pne_5.setText(_translate("sitool", "U: 3F A PNE17~25"))
         self.mount_all.setText(_translate("sitool", "All mount"))
         self.unmount_all.setText(_translate("sitool", "All unmount"))
         self.saveok.setText(_translate("sitool", "데이터 저장"))
@@ -8337,7 +8339,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
     def _load_cycle_data_task(self, task_info):
         """
         단일 폴더의 사이클 데이터를 로딩하는 작업 (ThreadPoolExecutor용)
-        """
+        """ 뇨
         folder_path, mincapacity, firstCrate, dcirchk, dcirchk_2, mkdcir, is_pne, folder_idx, subfolder_idx = task_info
         try:
             if is_pne:
@@ -8817,6 +8819,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                         if len(cyctemp[1].NewData.index) > overall_xlimit:
                             overall_xlimit = len(cyctemp[1].NewData.index)
                         
+                        # dcir2, mkdcir 중복 제거
                         graph_output_cycle(cyctemp[1], xscale, ylimitlow, ylimithigh, irscale, temp_lgnd, temp_lgnd,
                                            colorno, graphcolor, self.mkdcir, ax1, ax2, ax3, ax4, ax5, ax6)
                         
@@ -11845,29 +11848,55 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                     save_file_name = filedialog.asksaveasfilename(initialdir="D://", title="Save File Name", defaultextension=".xlsx")
                     if save_file_name:
                         writer = pd.ExcelWriter(save_file_name, engine="xlsxwriter")
-                fig, ax = plt.subplots(nrows=5, ncols=1, figsize=(6, 10))
+                fig, ax = plt.subplots(nrows=7, ncols=2, figsize=(6, 10))
                 tab = QtWidgets.QWidget()
                 tab_layout = QtWidgets.QVBoxLayout(tab)
                 canvas = FigureCanvas(fig)
                 toolbar = NavigationToolbar(canvas, None)
                 Profile = self.ect_data(datafilepath, "short")
             #Short Profile 확인용
-                graph_set_profile(Profile.Time, Profile.Vol, ax[0], 3.0, 4.8, 0.2, "Time(hr)", "Voltage (V)", "", 0, 0, 0, 0)
-                # graph_set(Profile.Time, Profile.anodeE, ax2, -0.1, 0.8, 0.1, "Time(hr)", "anodeE", "", 99)
-                graph_set_profile(Profile.Time, Profile.CurrAvg, ax[1], -10, 11, 2, "Time(hr)", "Curr(A)", "", 0, 0, 0, 0)
-                graph_set_profile(Profile.Time, Profile.Temp, ax[2], 20, 50, 4, "Time(hr)", "temp.(℃)", "", 0, 0, 0, 0)
-                graph_set_profile(Profile.Time, Profile.SOC, ax[3], 0, 120, 10, "Time(hr)", "SOC/SOCect", "", 0, 0, 0, 0)
-                graph_set_profile(Profile.Time, Profile.SOCect, ax[3], 0, 120, 10, "Time(hr)", "SOC/SOCect", "", 1, 0, 0, 0)
-                # graph_set_profile(Profile.Time, Profile.SOCectraw, ax[3], 0, 120, 10, "Time(hr)", "SOC/SOCect/SOCectraw", "", 2, 0, 0, 0)
+                graph_set_profile(Profile.Time, Profile.Cyc, ax[0][0], 0, 0, 0, "Time(hr)", "Cycle", "", 0, 0, 0, 0)
+                graph_set_profile(Profile.Time, Profile.Vol, ax[1][0], 3.0, 5.0, 0.5, "Time(hr)", "Vol.(V)", "", 0, 0, 0, 0)
+                graph_set_profile(Profile.Time, Profile.anodeE, ax[2][0], -0.2, 0.8, 0.2, "Time(hr)", "Anode V(V)", "", 0, 0, 0, 0)
+                graph_set_profile(Profile.Time, Profile.CurrAvg, ax[3][0], 0, 0, 0, "Time(hr)", "Curr.(A)", "", 0, 0, 0, 0)
+                graph_set_profile(Profile.Time, Profile.Temp, ax[4][0], 0, 0, 0, "Time(hr)", "Temp.(℃)", "", 0, 0, 0, 0)
+                graph_set_profile(Profile.Time, Profile.SOCectraw, ax[5][0], 0, 120, 20, "Time(hr)", "ECT ASOC", "ECT ASOC", 0, 0, 0, 0)
+                graph_set_profile(Profile.Time, Profile.SOC, ax[6][0], 0, 120, 20, "Time(hr)", "SOC", "SOC", 0, 0, 0, 0)
+                graph_set_profile(Profile.Time, Profile.SOCect, ax[6][0], 0, 120, 20, "Time(hr)", "SOC", "SOCect", 1, 0, 0, 0)
+                # graph_set_profile(Profile.Time, Profile.short_grade, ax[6][0], 0, 6, 1, "Time(hr)", "Short Grade", "", 0, 0, 0, 0)
+            
+                graph_set_profile(Profile.Time, Profile.short_value, ax[0][1], 0, 12, 2, "Time(hr)", "Short Value", "short value(1, 2, 4)", 0, 0, 0, 0)
+                graph_set_profile(Profile.Time, Profile.short_v_acc, ax[1][1], 0, 0, 0, "Time(hr)", "Short V acc.", "", 0, 0, 0, 0)
+                graph_set_profile(Profile.Time, Profile.short_v_avg, ax[2][1], 0, 0, 0, "Time(hr)", "Short V avg.", "", 0, 0, 0, 0)
+                graph_set_profile(Profile.Time, Profile.short_score, ax[3][1], 0, 6, 1, "Time(hr)", "Short Score.", "short check(>=3)", 0, 0, 0, 0)
+                graph_set_profile(Profile.Time, Profile.avg_i_isc, ax[4][1], 0, 120, 20, "Time(hr)", "Short I(mA).", "short current", 0, 0, 0, 0)
+                graph_set_profile(Profile.Time, Profile.short_grade, ax[5][1], 0, 6, 1, "Time(hr)", "Short Grade.", "Short Grade", 0, 0, 0, 0)
+                graph_set_profile(Profile.Time, Profile.avg_r_isc, ax[6][1], 0, 1200, 200, "Time(hr)", "Short R(Ω)", "short resistance", 0, 0, 0, 0)
+                graph_set_profile(Profile.Time, Profile.avg_r_isc_min, ax[6][1], 0, 1200, 200, "Time(hr)", "Short R(Ω)", "min short resistance", 0, 0, 0, 0)       
             # Short 관련
-                graph_set_profile(Profile.Time, Profile.short, ax[4], 0, 6, 1, "Time(hr)", "Short Score", "", 0, 0, 0, 0)
+                
                 # 마지막 행을 제외한 각 서브플롯 설정
-                for i in range(4):
-                    # X축 레이블 제거
-                    ax[i].set_xlabel('')
-                    # X축 틱 레이블 제거
-                    ax[i].set_xticklabels([])
+                for j in range(2):
+                    for i in range(6):
+                        # X축 레이블 제거
+                        ax[i][j].set_xlabel('')
+                        # X축 틱 레이블 제거
+                        ax[i][j].set_xticklabels([])
                 Chgnamelist = datafilepath.split("/")
+                #ax[0, 0].legend(loc="lower left")
+                #ax[1, 0].legend(loc="lower left")
+                #ax[2, 0].legend(loc="lower left")
+                #ax[3, 0].legend(loc="lower left")
+                #ax[4, 0].legend(loc="lower left")
+                ax[5, 0].legend(loc="lower left")
+                ax[6, 0].legend(loc="lower left")
+                ax[0, 1].legend(loc="lower left")
+                #ax[1, 1].legend(loc="lower left")
+                #ax[2, 1].legend(loc="lower left")
+                ax[3, 1].legend(loc="lower left")
+                ax[4, 1].legend(loc="lower left")
+                ax[5, 1].legend(loc="lower left")
+                ax[6, 1].legend(loc="lower left")
                 tab_layout.addWidget(toolbar)
                 tab_layout.addWidget(canvas)
                 self.set_tab.addTab(tab, Chgnamelist[-1])
@@ -11876,7 +11905,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
             if self.saveok.isChecked() and save_file_name:
                 Profile.to_excel(writer)
                 writer.close()
-            fig.legend()
+                #fig.legend()
             plt.subplots_adjust(right=0.8)
             # plt.suptitle(Chgnamelist[-1], fontsize= 15, fontweight='bold')
             plt.tight_layout(pad=1, w_pad=1, h_pad=1)
@@ -12507,20 +12536,17 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         ax2 = plt.subplot(2, 1, 2)
         toolbar = NavigationToolbar(canvas, None)
         # Voltage Profile 그리기
-        # Voltage Profile 그리기
         ax1_right = ax1.twinx()
-        lns1 = ax1_right.plot(simul_full.full_cap, simul_full.an_volt, "-", color = "b", label="음극")
-        lns2 = ax1.plot(simul_full.full_cap, simul_full.ca_volt, "-", color = "r", label="양극")
-        lns3 = ax1.plot(simul_full.full_cap, simul_full.full_volt, "--", color = "g", label="예측")
-        lns4 = ax1.plot(simul_full.full_cap, simul_full.real_volt, "-", color = "k", label="실측")
+        ax1_right.plot(simul_full.full_cap, simul_full.an_volt, "-", color = "b")
+        ax1.plot(simul_full.full_cap, simul_full.ca_volt, "-", color = "r")
+        ax1.plot(simul_full.full_cap, simul_full.full_volt, "--", color = "g")
+        ax1.plot(simul_full.full_cap, simul_full.real_volt, "-", color = "k")
         
         ax1.set_ylim(2.0, 4.6)
         ax1_right.set_ylim(0, 1.5)
         ax1.set_xticks(np.linspace(-5, 105, 23))
 
-        lns = lns1 + lns2 + lns3 + lns4
-        labs = [l.get_label() for l in lns]
-        ax1.legend(lns, labs)
+        ax1.legend(["음극", "양극", "예측", "실측"])
 
         ax1.set_xlabel("SOC")
         ax1.set_ylabel("Voltage")
