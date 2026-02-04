@@ -8844,17 +8844,12 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                             writecolno = writecolno + 1
                 colorno = colorno % 9 + 1
         
-        # 범례 설정
-        legend_kwargs = {'fontsize': 8, 'framealpha': 0.7, 'handlelength': 1}
+        # 범례 설정 (긴 범례 이름으로 인한 레이아웃 문제 방지)
         if len(all_data_name) != 0:
-            ax1.legend(loc="lower left", **legend_kwargs)
-            ax2.legend(loc="lower right", **legend_kwargs)
-            ax3.legend(loc="upper right", **legend_kwargs)
-            ax4.legend(loc="upper right", **legend_kwargs)
-            ax5.legend(loc="upper right", **legend_kwargs)
-            ax6.legend(loc="lower right", **legend_kwargs)
+            # 범례를 첫 번째 그래프에만 표시하고, 그래프 외부 하단에 배치
+            ax1.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), fontsize=8, ncol=2)
         else:
-            ax6.legend(loc="lower right", **legend_kwargs)
+            ax6.legend(loc="lower right", fontsize=8)
         
         # 파일 저장
         if overall_filename:
@@ -9006,19 +9001,18 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                         Chnl_num = Chnl_num + 1
         
         # 범례 설정
-        legend_kwargs = {'fontsize': 8, 'framealpha': 0.7, 'handlelength': 1}
         if cycnamelist:
             if len(all_data_name) != 0:
                 plt.suptitle(cycnamelist[-2], fontsize=15, fontweight='bold')
-                ax1.legend(loc="lower left", **legend_kwargs)
-                ax2.legend(loc="lower right", **legend_kwargs)
-                ax3.legend(loc="upper right", **legend_kwargs)
-                ax4.legend(loc="upper right", **legend_kwargs)
-                ax5.legend(loc="upper right", **legend_kwargs)
-                ax6.legend(loc="lower right", **legend_kwargs)
+                ax1.legend(loc="lower left")
+                ax2.legend(loc="lower right")
+                ax3.legend(loc="upper right")
+                ax4.legend(loc="upper right")
+                ax5.legend(loc="upper right")
+                ax6.legend(loc="lower right")
             else:
                 plt.suptitle(cycnamelist[-2], fontsize=15, fontweight='bold')
-                ax6.legend(loc="lower right", **legend_kwargs)
+                plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
         
         # 탭 추가 (유효 데이터가 있는 경우에만)
         if has_valid_data and tab_layout is not None:
@@ -9180,19 +9174,18 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                             writecolnomax = max(writecolno, writecolnomax)
             
             # 범례 설정
-            legend_kwargs = {'fontsize': 8, 'framealpha': 0.7, 'handlelength': 1}
             if cycnamelist:
                 if len(all_data_name) != 0:
                     plt.suptitle(cycnamelist[-2], fontsize=15, fontweight='bold')
-                    ax1.legend(loc="lower left", **legend_kwargs)
-                    ax2.legend(loc="lower right", **legend_kwargs)
-                    ax3.legend(loc="upper right", **legend_kwargs)
-                    ax4.legend(loc="upper right", **legend_kwargs)
-                    ax5.legend(loc="upper right", **legend_kwargs)
-                    ax6.legend(loc="lower right", **legend_kwargs)
+                    ax1.legend(loc="lower left")
+                    ax2.legend(loc="lower right")
+                    ax3.legend(loc="upper right")
+                    ax4.legend(loc="upper right")
+                    ax5.legend(loc="upper right")
+                    ax6.legend(loc="lower right")
                 else:
                     plt.suptitle(cycnamelist[-2], fontsize=15, fontweight='bold')
-                    ax6.legend(loc="lower right", **legend_kwargs)
+                    plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
             
             # 탭 추가 (유효 데이터가 있는 경우에만)
             if has_valid_data and tab_layout is not None:
@@ -9358,19 +9351,18 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
             maxcolor = max(colorno, maxcolor)
             
             # 범례 설정 (마지막 파일 처리 후)
-            legend_kwargs = {'fontsize': 8, 'framealpha': 0.7, 'handlelength': 1}
             if cycnamelist:
                 if len(all_data_name) != 0:
                     plt.suptitle(cycnamelist[-2], fontsize=15, fontweight='bold')
-                    ax1.legend(loc="lower left", **legend_kwargs)
-                    ax2.legend(loc="lower right", **legend_kwargs)
-                    ax3.legend(loc="upper right", **legend_kwargs)
-                    ax4.legend(loc="upper right", **legend_kwargs)
-                    ax5.legend(loc="upper right", **legend_kwargs)
-                    ax6.legend(loc="lower right", **legend_kwargs)
+                    ax1.legend(loc="lower left")
+                    ax2.legend(loc="lower right")
+                    ax3.legend(loc="upper right")
+                    ax4.legend(loc="upper right")
+                    ax5.legend(loc="upper right")
+                    ax6.legend(loc="lower right")
                 else:
                     plt.suptitle(cycnamelist[-2], fontsize=15, fontweight='bold')
-                    ax6.legend(loc="lower right", **legend_kwargs)
+                    plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
         
         # 탭 추가 (유효 데이터가 있는 경우에만)
         if has_valid_data and tab_layout is not None:
