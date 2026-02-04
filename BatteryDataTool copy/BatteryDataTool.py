@@ -8382,63 +8382,9 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         
         return results
     
-    def _setup_cycle_legends(self, axes_list, all_data_name):
-        """
-        6개 axes에 legend 일괄 설정
-        """
-        locations = ["lower left", "lower right", "upper right", 
-                     "upper right", "upper right", "lower right"]
-        if len(all_data_name) != 0:
-            for ax, loc in zip(axes_list, locations):
-                ax.legend(loc=loc)
-        else:
-            axes_list[-1].legend(loc="lower right")
-    
-    def _batch_output_cycle_data(self, newdata, writecolno, writerowno, headername, mkdcir_checked):
-        """
-        사이클 데이터 출력
-        """
-        # 기본 데이터 출력
-        output_configs = [
-            ("방전용량", "Dchg"), ("Rest End", "RndV"), ("평균 전압", "AvgV"),
-            ("충방효율", "Eff"), ("충전용량", "Chg"), ("방충효율", "Eff2"), ("방전Energy", "DchgEng")
-        ]
-        for col_name, sheet_name in output_configs:
-            output_data(newdata, col_name, writecolno, writerowno, sheet_name, headername)
-        
-        # DCIR 관련 출력
-        cyctempdcir = newdata.dcir.dropna(axis=0)
-        if mkdcir_checked and hasattr(newdata, "dcir2"):
-            dcir_configs = [
-                (newdata.dcir2.dropna(axis=0), "DCIR", "dcir2"),
-                (cyctempdcir, "RSS", "dcir"),
-                (newdata.rssocv.dropna(axis=0), "RSS_OCV", "rssocv"),
-                (newdata.rssccv.dropna(axis=0), "RSS_CCV", "rssccv"),
-            ]
-            # SOC70 데이터 (있는 경우)
-            if hasattr(newdata, "soc70_dcir"):
-                dcir_configs.insert(0, (newdata.soc70_dcir.dropna(axis=0), "SOC70_DCIR", "soc70_dcir"))
-            if hasattr(newdata, "soc70_rss_dcir"):
-                dcir_configs.insert(1, (newdata.soc70_rss_dcir.dropna(axis=0), "SOC70_RSS", "soc70_rss_dcir"))
-            
-            for data, col_name, sheet_name in dcir_configs:
-                output_data(data, col_name, writecolno, 0, sheet_name, headername)
-        else:
-            output_data(cyctempdcir, "DCIR", writecolno, 0, "dcir", headername)
-    
-    # 진행률 업데이트 최적화용 변수
-    _last_progress_update = 0
-    
-    def _update_progress_throttled(self, current, total, base_progress=50, interval=5):
-        """
-        진행률 업데이트 
-        """
-        if (current + 1) % interval == 0 or current == total - 1:
-            progress_val = base_progress + int((current + 1) / total * (100 - base_progress))
-            self.progressBar.setValue(progress_val)
-            return True
-        return False
-    
+    # ========================================
+    # 기존 함수들
+    # ========================================
 
     def cyc_ini_set(self):
         # UI 기준 초기 설정 데이터
@@ -8717,18 +8663,41 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                                            graphcolor, self.mkdcir, ax1, ax2, ax3, ax4, ax5, ax6)
                         colorno = colorno + 1
                         
-                        # Data output option (헬퍼 함수 사용)
+                        # Data output option
                         if self.saveok.isChecked() and save_file_name:
-                            self._batch_output_cycle_data(
-                                cyctemp[1].NewData, writecolno, 0, 
-                                headername, self.mkdcir.isChecked()
-                            )
+                            output_data(cyctemp[1].NewData, "방전용량", writecolno, 0, "Dchg", headername)
+                            output_data(cyctemp[1].NewData, "Rest End", writecolno, 0, "RndV", headername)
+                            output_data(cyctemp[1].NewData, "평균 전압", writecolno, 0, "AvgV", headername)
+                            output_data(cyctemp[1].NewData, "충방효율", writecolno, 0, "Eff", headername)
+                            output_data(cyctemp[1].NewData, "충전용량", writecolno, 0, "Chg", headername)
+                            output_data(cyctemp[1].NewData, "방충효율", writecolno, 0, "Eff2", headername)
+                            output_data(cyctemp[1].NewData, "방전Energy", writecolno, 0, "DchgEng", headername)
+                            cyctempdcir = cyctemp[1].NewData.dcir.dropna(axis=0)
+                            if self.mkdcir.isChecked() and hasattr(cyctemp[1].NewData, "dcir2"):
+                                cyctempdcir2 = cyctemp[1].NewData.dcir2.dropna(axis=0)
+                                cyctemprssocv = cyctemp[1].NewData.rssocv.dropna(axis=0)
+                                cyctemprssccv = cyctemp[1].NewData.rssccv.dropna(axis=0)
+                                cyctempsoc70dcir = cyctemp[1].NewData.soc70_dcir.dropna(axis=0)
+                                cyctempsoc70rssdcir = cyctemp[1].NewData.soc70_rss_dcir.dropna(axis=0)
+                                output_data(cyctempsoc70dcir, "SOC70_DCIR", writecolno, 0, "soc70_dcir", headername)
+                                output_data(cyctempsoc70rssdcir, "SOC70_RSS", writecolno, 0, "soc70_rss_dcir", headername)
+                                output_data(cyctempdcir, "RSS", writecolno, 0, "dcir", headername)
+                                output_data(cyctempdcir2, "DCIR", writecolno, 0, "dcir2", headername)
+                                output_data(cyctempdcir, "RSS", writecolno, 0, "dcir", headername)
+                                output_data(cyctemprssocv, "RSS_OCV", writecolno, 0, "rssocv", headername)
+                                output_data(cyctemprssccv, "RSS_CCV", writecolno, 0, "rssccv", headername)
+                            else:
+                                output_data(cyctempdcir, "DCIR", writecolno, 0, "dcir", headername)
                             output_data(cyctemp[1].NewData, "충방전기CY", writecolno, 0, "OriCyc", headername)
                             writecolno = writecolno + 1
                     
                     plt.suptitle(cycnamelist[-2], fontsize=15, fontweight='bold')
-                    # 범례 설정 (헬퍼 함수 사용)
-                    self._setup_cycle_legends([ax1, ax2, ax3, ax4, ax5, ax6], all_data_name if len(all_data_name) != 0 else [''])
+                    ax1.legend(loc="lower left")
+                    ax2.legend(loc="lower right")
+                    ax3.legend(loc="upper right")
+                    ax4.legend(loc="upper right")
+                    ax5.legend(loc="upper right")
+                    ax6.legend(loc="lower right")
                 
                 # [수정] 유효한 데이터가 있는 경우에만 탭 추가
                 if has_valid_data and tab_layout is not None:
@@ -8847,17 +8816,44 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                         graph_output_cycle(cyctemp[1], xscale, ylimitlow, ylimithigh, irscale, temp_lgnd, temp_lgnd,
                                            colorno, graphcolor, self.mkdcir, ax1, ax2, ax3, ax4, ax5, ax6)
                         
-                        # Data output option (헬퍼 함수 사용)
+                        # Data output option
                         if self.saveok.isChecked() and save_file_name:
-                            self._batch_output_cycle_data(
-                                cyctemp[1].NewData, writecolno, writerowno, 
-                                headername, self.mkdcir.isChecked()
-                            )
+                            output_data(cyctemp[1].NewData, "방전용량", writecolno, writerowno, "Dchg", headername)
+                            output_data(cyctemp[1].NewData, "Rest End", writecolno, writerowno, "RndV", headername)
+                            output_data(cyctemp[1].NewData, "평균 전압", writecolno, writerowno, "AvgV", headername)
+                            output_data(cyctemp[1].NewData, "충방효율", writecolno, writerowno, "Eff", headername)
+                            output_data(cyctemp[1].NewData, "충전용량", writecolno, writerowno, "Chg", headername)
+                            output_data(cyctemp[1].NewData, "방충효율", writecolno, writerowno, "Eff2", headername)
+                            output_data(cyctemp[1].NewData, "방전Energy", writecolno, writerowno, "DchgEng", headername)
+                            cyctempdcir = cyctemp[1].NewData.dcir.dropna(axis=0)
+                            if self.mkdcir.isChecked() and hasattr(cyctemp[1].NewData, "dcir2"):
+                                cyctempdcir2 = cyctemp[1].NewData.dcir2.dropna(axis=0)
+                                cyctemprssocv = cyctemp[1].NewData.rssocv.dropna(axis=0)
+                                cyctemprssccv = cyctemp[1].NewData.rssccv.dropna(axis=0)
+                                cyctempsoc70dcir = cyctemp[1].NewData.soc70_dcir.dropna(axis=0)
+                                cyctempsoc70rssdcir = cyctemp[1].NewData.soc70_rss_dcir.dropna(axis=0)
+                                output_data(cyctempsoc70dcir, "SOC70_DCIR", writecolno, 0, "soc70_dcir", headername)
+                                output_data(cyctempsoc70rssdcir, "SOC70_RSS", writecolno, 0, "soc70_rss_dcir", headername)
+                                output_data(cyctempdcir, "RSS", writecolno, 0, "dcir", headername)
+                                output_data(cyctempdcir2, "DCIR", writecolno, 0, "dcir2", headername)
+                                output_data(cyctempdcir, "RSS", writecolno, 0, "dcir", headername)
+                                output_data(cyctemprssocv, "RSS_OCV", writecolno, 0, "rssocv", headername)
+                                output_data(cyctemprssccv, "RSS_CCV", writecolno, 0, "rssccv", headername)
+                            else:
+                                output_data(cyctempdcir, "DCIR", writecolno, 0, "dcir", headername)
                             writecolno = writecolno + 1
                 colorno = colorno % 9 + 1
         
-        # 범례 설정 (헬퍼 함수 사용)
-        self._setup_cycle_legends([ax1, ax2, ax3, ax4, ax5, ax6], all_data_name)
+        # 범례 설정
+        if len(all_data_name) != 0:
+            ax1.legend(loc="lower left")
+            ax2.legend(loc="lower right")
+            ax3.legend(loc="upper right")
+            ax4.legend(loc="upper right")
+            ax5.legend(loc="upper right")
+            ax6.legend(loc="lower right")
+        else:
+            ax6.legend(loc="lower right")
         
         # 파일 저장
         if overall_filename:
@@ -8982,24 +8978,44 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                         graph_output_cycle(cyctemp[1], xscale, ylimitlow, ylimithigh, irscale, lgnd, temp_lgnd, colorno,
                                            graphcolor, self.mkdcir, ax1, ax2, ax3, ax4, ax5, ax6)
                         
-                        # Data output option (헬퍼 함수 사용)
+                        # Data output option
                         if self.saveok.isChecked() and save_file_name:
-                            self._batch_output_cycle_data(
-                                cyctemp[1].NewData, writecolno, writerowno, 
-                                headername, self.mkdcir.isChecked()
-                            )
+                            output_data(cyctemp[1].NewData, "방전용량", writecolno, writerowno, "Dchg", headername)
+                            output_data(cyctemp[1].NewData, "Rest End", writecolno, writerowno, "RndV", headername)
+                            output_data(cyctemp[1].NewData, "평균 전압", writecolno, writerowno, "AvgV", headername)
+                            output_data(cyctemp[1].NewData, "충방효율", writecolno, writerowno, "Eff", headername)
+                            output_data(cyctemp[1].NewData, "충전용량", writecolno, writerowno, "Chg", headername)
+                            output_data(cyctemp[1].NewData, "방충효율", writecolno, writerowno, "Eff2", headername)
+                            output_data(cyctemp[1].NewData, "방전Energy", writecolno, writerowno, "DchgEng", headername)
+                            cyctempdcir = cyctemp[1].NewData.dcir.dropna(axis=0)
+                            if self.mkdcir.isChecked() and hasattr(cyctemp[1].NewData, "dcir2"):
+                                cyctempdcir2 = cyctemp[1].NewData.dcir2.dropna(axis=0)
+                                cyctemprssocv = cyctemp[1].NewData.rssocv.dropna(axis=0)
+                                cyctemprssccv = cyctemp[1].NewData.rssccv.dropna(axis=0)
+                                output_data(cyctempdcir2, "DCIR", writecolno, 0, "dcir2", headername)
+                                output_data(cyctempdcir, "RSS", writecolno, 0, "dcir", headername)
+                                output_data(cyctemprssocv, "RSS_OCV", writecolno, 0, "rssocv", headername)
+                                output_data(cyctemprssccv, "RSS_CCV", writecolno, 0, "rssccv", headername)
+                            else:
+                                output_data(cyctempdcir, "DCIR", writecolno, 0, "dcir", headername)
                         colorno = colorno + 1
                         writecolno = writecolno + 1
                         CycleMax[Chnl_num] = len(cyctemp[1].NewData)
                         link_writerownum[Chnl_num] = writerowno
                         Chnl_num = Chnl_num + 1
         
-        # 범례 설정 (헬퍼 함수 사용)
+        # 범례 설정
         if cycnamelist:
-            plt.suptitle(cycnamelist[-2], fontsize=15, fontweight='bold')
             if len(all_data_name) != 0:
-                self._setup_cycle_legends([ax1, ax2, ax3, ax4, ax5, ax6], all_data_name)
+                plt.suptitle(cycnamelist[-2], fontsize=15, fontweight='bold')
+                ax1.legend(loc="lower left")
+                ax2.legend(loc="lower right")
+                ax3.legend(loc="upper right")
+                ax4.legend(loc="upper right")
+                ax5.legend(loc="upper right")
+                ax6.legend(loc="lower right")
             else:
+                plt.suptitle(cycnamelist[-2], fontsize=15, fontweight='bold')
                 plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
         
         # 탭 추가 (유효 데이터가 있는 경우에만)
@@ -9133,12 +9149,26 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                             graph_output_cycle(cyctemp[1], xscale, ylimitlow, ylimithigh, irscale, lgnd, temp_lgnd, colorno,
                                                graphcolor, self.mkdcir, ax1, ax2, ax3, ax4, ax5, ax6)
                             
-                            # Data output option (헬퍼 함수 사용)
+                            # Data output option
                             if self.saveok.isChecked() and save_file_name:
-                                self._batch_output_cycle_data(
-                                    cyctemp[1].NewData, writecolno, writerowno, 
-                                    headername, self.mkdcir.isChecked()
-                                )
+                                output_data(cyctemp[1].NewData, "방전용량", writecolno, writerowno, "Dchg", headername)
+                                output_data(cyctemp[1].NewData, "Rest End", writecolno, writerowno, "RndV", headername)
+                                output_data(cyctemp[1].NewData, "평균 전압", writecolno, writerowno, "AvgV", headername)
+                                output_data(cyctemp[1].NewData, "충방효율", writecolno, writerowno, "Eff", headername)
+                                output_data(cyctemp[1].NewData, "충전용량", writecolno, writerowno, "Chg", headername)
+                                output_data(cyctemp[1].NewData, "방충효율", writecolno, writerowno, "Eff2", headername)
+                                output_data(cyctemp[1].NewData, "방전Energy", writecolno, writerowno, "DchgEng", headername)
+                                cyctempdcir = cyctemp[1].NewData.dcir.dropna(axis=0)
+                                if self.mkdcir.isChecked() and hasattr(cyctemp[1].NewData, "dcir2"):
+                                    cyctempdcir2 = cyctemp[1].NewData.dcir2.dropna(axis=0)
+                                    cyctemprssocv = cyctemp[1].NewData.rssocv.dropna(axis=0)
+                                    cyctemprssccv = cyctemp[1].NewData.rssccv.dropna(axis=0)
+                                    output_data(cyctempdcir2, "DCIR", writecolno, 0, "dcir2", headername)
+                                    output_data(cyctempdcir, "RSS", writecolno, 0, "dcir", headername)
+                                    output_data(cyctemprssocv, "RSS_OCV", writecolno, 0, "rssocv", headername)
+                                    output_data(cyctemprssccv, "RSS_CCV", writecolno, 0, "rssccv", headername)
+                                else:
+                                    output_data(cyctempdcir, "DCIR", writecolno, 0, "dcir", headername)
                                 output_data(cyctemp[1].NewData, "충방전기CY", writecolno, 0, "OriCyc", headername)
                                 writecolno = writecolno + 1
                             colorno = colorno + 1
@@ -9147,12 +9177,18 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                             Chnl_num = Chnl_num + 1
                             writecolnomax = max(writecolno, writecolnomax)
             
-            # 범례 설정 (헬퍼 함수 사용)
+            # 범례 설정
             if cycnamelist:
-                plt.suptitle(cycnamelist[-2], fontsize=15, fontweight='bold')
                 if len(all_data_name) != 0:
-                    self._setup_cycle_legends([ax1, ax2, ax3, ax4, ax5, ax6], all_data_name)
+                    plt.suptitle(cycnamelist[-2], fontsize=15, fontweight='bold')
+                    ax1.legend(loc="lower left")
+                    ax2.legend(loc="lower right")
+                    ax3.legend(loc="upper right")
+                    ax4.legend(loc="upper right")
+                    ax5.legend(loc="upper right")
+                    ax6.legend(loc="lower right")
                 else:
+                    plt.suptitle(cycnamelist[-2], fontsize=15, fontweight='bold')
                     plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
             
             # 탭 추가 (유효 데이터가 있는 경우에만)
@@ -9289,12 +9325,26 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                             graph_output_cycle(cyctemp[1], xscale, ylimitlow, ylimithigh, irscale, lgnd, temp_lgnd, colorno,
                                                graphcolor, self.mkdcir, ax1, ax2, ax3, ax4, ax5, ax6)
                             
-                            # Data output option (헬퍼 함수 사용)
+                            # Data output option
                             if self.saveok.isChecked() and save_file_name:
-                                self._batch_output_cycle_data(
-                                    cyctemp[1].NewData, writecolno, writerowno, 
-                                    headername, self.mkdcir.isChecked()
-                                )
+                                output_data(cyctemp[1].NewData, "방전용량", writecolno, writerowno, "Dchg", headername)
+                                output_data(cyctemp[1].NewData, "Rest End", writecolno, writerowno, "RndV", headername)
+                                output_data(cyctemp[1].NewData, "평균 전압", writecolno, writerowno, "AvgV", headername)
+                                output_data(cyctemp[1].NewData, "충방효율", writecolno, writerowno, "Eff", headername)
+                                output_data(cyctemp[1].NewData, "충전용량", writecolno, writerowno, "Chg", headername)
+                                output_data(cyctemp[1].NewData, "방충효율", writecolno, writerowno, "Eff2", headername)
+                                output_data(cyctemp[1].NewData, "방전Energy", writecolno, writerowno, "DchgEng", headername)
+                                cyctempdcir = cyctemp[1].NewData.dcir.dropna(axis=0)
+                                if self.mkdcir.isChecked() and hasattr(cyctemp[1].NewData, "dcir2"):
+                                    cyctempdcir2 = cyctemp[1].NewData.dcir2.dropna(axis=0)
+                                    cyctemprssocv = cyctemp[1].NewData.rssocv.dropna(axis=0)
+                                    cyctemprssccv = cyctemp[1].NewData.rssccv.dropna(axis=0)
+                                    output_data(cyctempdcir2, "DCIR", writecolno, 0, "dcir2", headername)
+                                    output_data(cyctempdcir, "RSS", writecolno, 0, "dcir", headername)
+                                    output_data(cyctemprssocv, "RSS_OCV", writecolno, 0, "rssocv", headername)
+                                    output_data(cyctemprssccv, "RSS_CCV", writecolno, 0, "rssccv", headername)
+                                else:
+                                    output_data(cyctempdcir, "DCIR", writecolno, 0, "dcir", headername)
                                 output_data(cyctemp[1].NewData, "충방전기CY", writecolno, 0, "OriCyc", headername)
                                 writecolno = writecolno + 1
                             CycleMax[Chnl_num] = len(cyctemp[1].NewData)
@@ -9304,12 +9354,18 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                 colorno = colorno + 1
             maxcolor = max(colorno, maxcolor)
             
-            # 범례 설정 (헬퍼 함수 사용) - 마지막 파일 처리 후
+            # 범례 설정 (마지막 파일 처리 후)
             if cycnamelist:
-                plt.suptitle(cycnamelist[-2], fontsize=15, fontweight='bold')
                 if len(all_data_name) != 0:
-                    self._setup_cycle_legends([ax1, ax2, ax3, ax4, ax5, ax6], all_data_name)
+                    plt.suptitle(cycnamelist[-2], fontsize=15, fontweight='bold')
+                    ax1.legend(loc="lower left")
+                    ax2.legend(loc="lower right")
+                    ax3.legend(loc="upper right")
+                    ax4.legend(loc="upper right")
+                    ax5.legend(loc="upper right")
+                    ax6.legend(loc="lower right")
                 else:
+                    plt.suptitle(cycnamelist[-2], fontsize=15, fontweight='bold')
                     plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
         
         # 탭 추가 (유효 데이터가 있는 경우에만)
