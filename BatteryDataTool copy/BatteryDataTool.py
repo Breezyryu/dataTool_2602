@@ -8877,7 +8877,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                 for ax in axes_list:
                     legend = ax.get_legend()
                     if legend:
-                        legend.set_visible(state == QtCore.Qt.Checked)
+                        legend.set_visible(state == Qt.CheckState.Checked.value)
                 canvas.draw()
             
             legend_checkbox.stateChanged.connect(toggle_legend)
