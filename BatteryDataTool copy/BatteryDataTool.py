@@ -8868,6 +8868,21 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         
         # 탭 추가 (유효 데이터가 있는 경우에만)
         if has_valid_data and tab_layout is not None:
+            # 레전드 온/오프 체크박스 추가
+            legend_checkbox = QtWidgets.QCheckBox("Legend ON/OFF")
+            legend_checkbox.setChecked(True)
+            axes_list = [ax1, ax2, ax3, ax4, ax5, ax6]
+            
+            def toggle_legend(state):
+                for ax in axes_list:
+                    legend = ax.get_legend()
+                    if legend:
+                        legend.set_visible(state == QtCore.Qt.Checked)
+                canvas.draw()
+            
+            legend_checkbox.stateChanged.connect(toggle_legend)
+            
+            tab_layout.addWidget(legend_checkbox)
             tab_layout.addWidget(toolbar)
             tab_layout.addWidget(canvas)
             self.cycle_tab.addTab(tab, str(tab_no))
