@@ -8844,12 +8844,19 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                             writecolno = writecolno + 1
                 colorno = colorno % 9 + 1
         
-        # 범례 설정 (긴 범례 이름으로 인한 레이아웃 문제 방지)
+        # 범례 설정 (fontsize 제한으로 긴 이름 대응)
         if len(all_data_name) != 0:
-            # 범례를 첫 번째 그래프에만 표시하고, 그래프 외부 하단에 배치
-            ax1.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), fontsize=8, ncol=2)
+            ax1.legend(loc="lower left", fontsize=8)
+            ax2.legend(loc="lower right", fontsize=8)
+            ax3.legend(loc="upper right", fontsize=8)
+            ax4.legend(loc="upper right", fontsize=8)
+            ax5.legend(loc="upper right", fontsize=8)
+            ax6.legend(loc="lower right", fontsize=8)
         else:
             ax6.legend(loc="lower right", fontsize=8)
+        
+        # tight_layout을 canvas 추가 전에 호출 (legend 영향 최소화)
+        plt.tight_layout(pad=1, w_pad=1, h_pad=1)
         
         # 파일 저장
         if overall_filename:
@@ -8870,7 +8877,6 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         
         if self.saveok.isChecked() and save_file_name:
             writer.close()
-        plt.tight_layout(pad=1, w_pad=1, h_pad=1)
         self.progressBar.setValue(100)
         plt.close()
 
