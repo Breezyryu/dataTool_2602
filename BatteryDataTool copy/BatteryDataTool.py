@@ -8844,16 +8844,19 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                             writecolno = writecolno + 1
                 colorno = colorno % 9 + 1
         
-        # 범례 설정 (bbox_to_anchor로 고정 위치 지정 - 긴 레전드명 대응)
+        # 범례 설정 - figure 하단에 공통 레전드 배치 (긴 레전드명 대응)
         if len(all_data_name) != 0:
-            ax1.legend(loc="lower left", fontsize='small', bbox_to_anchor=(0, 0), borderaxespad=0.5)
-            ax2.legend(loc="lower right", fontsize='small', bbox_to_anchor=(1, 0), borderaxespad=0.5)
-            ax3.legend(loc="upper right", fontsize='small', bbox_to_anchor=(1, 1), borderaxespad=0.5)
-            ax4.legend(loc="upper right", fontsize='small', bbox_to_anchor=(1, 1), borderaxespad=0.5)
-            ax5.legend(loc="upper right", fontsize='small', bbox_to_anchor=(1, 1), borderaxespad=0.5)
-            ax6.legend(loc="lower right", fontsize='small', bbox_to_anchor=(1, 0), borderaxespad=0.5)
+            # ax1에서 레전드 핸들과 라벨 가져오기
+            handles, labels = ax1.get_legend_handles_labels()
+            if handles:
+                # figure 하단 중앙에 공통 레전드 배치
+                fig.legend(handles, labels, loc='lower center', fontsize='small', 
+                          ncol=min(len(handles), 3), bbox_to_anchor=(0.5, 0.02))
         else:
             ax6.legend(loc="lower right", fontsize='small')
+        
+        # tight_layout에 하단 여백 확보 (레전드 공간)
+        plt.tight_layout(pad=1, w_pad=1, h_pad=1, rect=[0, 0.08, 1, 1])
         
         # 파일 저장
         if overall_filename:
@@ -8874,7 +8877,6 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         
         if self.saveok.isChecked() and save_file_name:
             writer.close()
-        plt.tight_layout(pad=1, w_pad=1, h_pad=1)
         self.progressBar.setValue(100)
         plt.close()
 
