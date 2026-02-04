@@ -873,7 +873,7 @@ def pne_data(raw_file_path, inicycle):
         filepos = pne_search_cycle(rawdir, inicycle, inicycle + 1)
         # for files in subfile:
         if os.path.isdir(rawdir):
-            if (filepos[0] != -1):
+            if (filepos[0] == -1):
                 filepos[0] = 0
             subfile = [f for f in os.listdir(rawdir) if f.endswith(".csv")]
             for files in subfile[(filepos[0]):(filepos[1] + 1)]:
