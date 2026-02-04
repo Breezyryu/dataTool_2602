@@ -4,7 +4,6 @@ import re
 import bisect
 import warnings
 import json
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import pyodbc
 import pandas as pd
 import numpy as np
@@ -8334,57 +8333,6 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         else:
             plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     
-    def _load_cycle_data_task(self, task_info):
-        """
-        [병렬화] 단일 폴더의 사이클 데이터를 로딩하는 작업 (ThreadPoolExecutor용)
-        task_info: (folder_path, mincapacity, firstCrate, dcirchk, dcirchk_2, mkdcir, is_pne, folder_idx, subfolder_idx)
-        Returns: (folder_idx, subfolder_idx, folder_path, cyctemp)
-        """
-        folder_path, mincapacity, firstCrate, dcirchk, dcirchk_2, mkdcir, is_pne, folder_idx, subfolder_idx = task_info
-        try:
-            if is_pne:
-                cyctemp = pne_cycle_data(folder_path, mincapacity, firstCrate, dcirchk, dcirchk_2, mkdcir)
-            else:
-                cyctemp = toyo_cycle_data(folder_path, mincapacity, firstCrate, dcirchk_2)
-            return (folder_idx, subfolder_idx, folder_path, cyctemp)
-        except Exception as e:
-            print(f"[병렬 로딩 오류] {folder_path}: {e}")
-            return (folder_idx, subfolder_idx, folder_path, None)
-    
-    def _load_all_cycle_data_parallel(self, all_data_folder, mincapacity, firstCrate, 
-                                       dcirchk, dcirchk_2, mkdcir, max_workers=4):
-        """
-        [병렬화] 모든 폴더의 사이클 데이터를 병렬로 로딩
-        Returns: dict[(folder_idx, subfolder_idx)] = (folder_path, cyctemp)
-        """
-        tasks = []
-        for i, cyclefolder in enumerate(all_data_folder):
-            if os.path.exists(cyclefolder):
-                subfolder = [f.path for f in os.scandir(cyclefolder) if f.is_dir()]
-                is_pne = check_cycler(cyclefolder)
-                for j, folder_path in enumerate(subfolder):
-                    if "Pattern" not in folder_path:
-                        task_info = (folder_path, mincapacity, firstCrate, 
-                                     dcirchk, dcirchk_2, mkdcir, is_pne, i, j)
-                        tasks.append(task_info)
-        
-        results = {}
-        total_tasks = len(tasks)
-        completed = 0
-        
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {executor.submit(self._load_cycle_data_task, task): task for task in tasks}
-            for future in as_completed(futures):
-                result = future.result()
-                if result:
-                    folder_idx, subfolder_idx, folder_path, cyctemp = result
-                    results[(folder_idx, subfolder_idx)] = (folder_path, cyctemp)
-                completed += 1
-                # 진행률 업데이트 (50%까지만 - 나머지 50%는 그래프 생성)
-                self.progressBar.setValue(int(completed / total_tasks * 50))
-        
-        return results
-    
     # ========================================
     # 기존 함수들
     # ========================================
@@ -8569,77 +8517,46 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
         plt.close()
 
     def indiv_cyc_confirm_button(self):
-        """
-        [병렬화] 개별 사이클 데이터 확인 버튼 - ThreadPoolExecutor 사용
-        데이터 로딩은 병렬로, 그래프 생성/GUI 업데이트는 순차적으로 처리
-        """
         firstCrate, mincapacity, xscale, ylimithigh, ylimitlow, irscale = self.cyc_ini_set()
+        # 용량 선정 관련
         global writer
-        writecolno, colorno = 0, 0
-        
+        foldercount, chnlcount, writecolno, writerowno, Chnl_num, colorno = 0, 0, 0, 0, 0, 0
+        root = Tk()
+        root.withdraw()
         self.indiv_cycle.setDisabled(True)
         pne_path = self.pne_path_setting()
         all_data_folder = pne_path[0]
         all_data_name = pne_path[1]
         if pne_path[2]:
             mincapacity = name_capacity(pne_path[2])
-        
-        # 파일 저장 설정
-        save_file_name = None
         if self.saveok.isChecked():
             save_file_name = filedialog.asksaveasfilename(initialdir="D://", title="Save File Name", defaultextension=".xlsx")
             if save_file_name:
                 writer = pd.ExcelWriter(save_file_name, engine="xlsxwriter")
         self.indiv_cycle.setEnabled(True)
-        
         graphcolor = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
-        
-        # ========================================
-        # [병렬화] 1단계: 데이터 로딩 (병렬 처리)
-        # ========================================
-        self.progressBar.setValue(0)
-        loaded_data = self._load_all_cycle_data_parallel(
-            all_data_folder, mincapacity, firstCrate,
-            self.dcirchk.isChecked(), self.dcirchk_2.isChecked(), self.mkdcir.isChecked(),
-            max_workers=4
-        )
-        
-        # ========================================
-        # [병렬화] 2단계: 그래프 생성 (순차 처리 - GUI 업데이트 필요)
-        # ========================================
-        tab_no = 0
         j = 0
-        total_folders = len(all_data_folder)
-        
+        # while self.cycle_tab.count() > 0:
+        #     self.cycle_tab.removeTab(0)
+        tab_no = 0
         for i, cyclefolder in enumerate(all_data_folder):
             fig, ((ax1, ax2, ax3), (ax4, ax5, ax6)) = plt.subplots(nrows=2, ncols=3, figsize=(14, 8))
-            
             if os.path.exists(cyclefolder):
                 subfolder = [f.path for f in os.scandir(cyclefolder) if f.is_dir()]
-                
-                for sub_idx, FolderBase in enumerate(subfolder):
-                    # 병렬 로딩된 데이터 검색
-                    if (i, sub_idx) not in loaded_data:
-                        continue
-                    
-                    folder_path, cyctemp = loaded_data[(i, sub_idx)]
-                    if cyctemp is None:
-                        continue
-                    
+                foldercountmax = len(all_data_folder)
+                foldercount = foldercount + 1
+                for FolderBase in subfolder:
                     # tab 그래프 추가
                     tab = QtWidgets.QWidget()
                     tab_layout = QtWidgets.QVBoxLayout(tab)
                     canvas = FigureCanvas(fig)
                     toolbar = NavigationToolbar(canvas, None)
-                    
-                    # 진행률 업데이트 (50% ~ 100%)
-                    progress_val = 50 + int((i + 1) / total_folders * 50)
-                    self.progressBar.setValue(progress_val)
-                    
+                    chnlcountmax = len(subfolder)
+                    chnlcount = chnlcount + 1
+                    progressdata = progress(foldercount, foldercountmax, chnlcount, chnlcountmax, 1, 1)
+                    self.progressBar.setValue(int(progressdata))
                     cycnamelist = FolderBase.split("\\")
                     headername = [cycnamelist[-2] + ", " + cycnamelist[-1]]
-                    
-                    # legend 설정
                     if len(all_data_name) != 0 and j == i:
                         lgnd = all_data_name[i]
                         j = j + 1
@@ -8647,18 +8564,24 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                         lgnd = ""
                     else:
                         lgnd = extract_text_in_brackets(cycnamelist[-1])
-                    
+                    if not check_cycler(cyclefolder):
+                        cyctemp = toyo_cycle_data(FolderBase, mincapacity, firstCrate, self.dcirchk_2.isChecked())
+                    else:
+                        cyctemp = pne_cycle_data(FolderBase, mincapacity, firstCrate, self.dcirchk.isChecked(),
+                                                    self.dcirchk_2.isChecked(), self.mkdcir.isChecked())
                     if hasattr(cyctemp[1], "NewData"):
                         self.capacitytext.setText(str(cyctemp[0]))
                         irscale = float(self.dcirscale.text())
                         if irscale == 0 and cyctemp[0] != 0:
                             irscale = int(1/(cyctemp[0]/5000) + 1)//2 * 2
-                        
-                        graph_output_cycle(cyctemp[1], xscale, ylimitlow, ylimithigh, irscale, lgnd, lgnd, colorno,
-                                           graphcolor, self.mkdcir, ax1, ax2, ax3, ax4, ax5, ax6)
+                        if self.mkdcir.isChecked() and hasattr(cyctemp[1].NewData, "dcir2"):
+                            graph_output_cycle(cyctemp[1], xscale, ylimitlow, ylimithigh, irscale, lgnd, lgnd, colorno,
+                                                graphcolor, self.mkdcir, ax1, ax2, ax3, ax4, ax5, ax6)
+                        else:
+                            graph_output_cycle(cyctemp[1], xscale, ylimitlow, ylimithigh, irscale, lgnd, lgnd, colorno,
+                                                graphcolor, self.mkdcir, ax1, ax2, ax3, ax4, ax5, ax6)
                         colorno = colorno + 1
-                        
-                        # Data output option
+                        # # Data output option
                         if self.saveok.isChecked() and save_file_name:
                             output_data(cyctemp[1].NewData, "방전용량", writecolno, 0, "Dchg", headername)
                             output_data(cyctemp[1].NewData, "Rest End", writecolno, 0, "RndV", headername)
@@ -8685,15 +8608,18 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                                 output_data(cyctempdcir, "DCIR", writecolno, 0, "dcir", headername)
                             output_data(cyctemp[1].NewData, "충방전기CY", writecolno, 0, "OriCyc", headername)
                             writecolno = writecolno + 1
-                    
-                    plt.suptitle(cycnamelist[-2], fontsize=15, fontweight='bold')
+                    # if len(all_data_name) != 0:
+                    plt.suptitle(cycnamelist[-2], fontsize= 15, fontweight='bold')
                     ax1.legend(loc="lower left")
                     ax2.legend(loc="lower right")
                     ax3.legend(loc="upper right")
                     ax4.legend(loc="upper right")
                     ax5.legend(loc="upper right")
                     ax6.legend(loc="lower right")
-                
+                    # else:
+                    #     plt.suptitle(cycnamelist[-2], fontsize= 15, fontweight='bold')
+                    #     # plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+                    #     ax6.legend(loc="lower right")
                 tab_layout.addWidget(toolbar)
                 tab_layout.addWidget(canvas)
                 self.cycle_tab.addTab(tab, str(tab_no))
@@ -8702,7 +8628,6 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                 plt.tight_layout(pad=1, w_pad=1, h_pad=1)
                 output_fig(self.figsaveok, cycnamelist[-2])
                 colorno = 0
-        
         if self.saveok.isChecked() and save_file_name:
             writer.close()
         plt.tight_layout(pad=1, w_pad=1, h_pad=1)
