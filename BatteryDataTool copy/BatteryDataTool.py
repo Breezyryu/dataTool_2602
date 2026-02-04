@@ -8844,16 +8844,16 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
                             writecolno = writecolno + 1
                 colorno = colorno % 9 + 1
         
-        # 범례 설정
+        # 범례 설정 (bbox_to_anchor로 고정 위치 지정 - 긴 레전드명 대응)
         if len(all_data_name) != 0:
-            ax1.legend(loc="lower left")
-            ax2.legend(loc="lower right")
-            ax3.legend(loc="upper right")
-            ax4.legend(loc="upper right")
-            ax5.legend(loc="upper right")
-            ax6.legend(loc="lower right")
+            ax1.legend(loc="lower left", fontsize='small', bbox_to_anchor=(0, 0), borderaxespad=0.5)
+            ax2.legend(loc="lower right", fontsize='small', bbox_to_anchor=(1, 0), borderaxespad=0.5)
+            ax3.legend(loc="upper right", fontsize='small', bbox_to_anchor=(1, 1), borderaxespad=0.5)
+            ax4.legend(loc="upper right", fontsize='small', bbox_to_anchor=(1, 1), borderaxespad=0.5)
+            ax5.legend(loc="upper right", fontsize='small', bbox_to_anchor=(1, 1), borderaxespad=0.5)
+            ax6.legend(loc="lower right", fontsize='small', bbox_to_anchor=(1, 0), borderaxespad=0.5)
         else:
-            ax6.legend(loc="lower right")
+            ax6.legend(loc="lower right", fontsize='small')
         
         # 파일 저장
         if overall_filename:
