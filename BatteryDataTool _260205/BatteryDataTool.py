@@ -8251,7 +8251,7 @@ class WindowClass(QtWidgets.QMainWindow, Ui_sitool):
             disconnect_change(self.mount_pne_5)
 
     # ========================================
-    # 함수 추가
+    # 함수 정의
     # ========================================
     
     def _init_confirm_button(self, button_widget):
